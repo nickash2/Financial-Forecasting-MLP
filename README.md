@@ -19,7 +19,7 @@ pip install -r requirements.txt
 ```
 # To do
 ## Preprocessing
-- [ ] Pitch which group of timeseries to use
+- [ ] Pick which group of timeseries to use
 - [ ] De-trend and de-seasonalize
 ## NN Modeling
 - [ ] RNN vs MLP (**MLP recommended**)
