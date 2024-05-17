@@ -19,12 +19,11 @@ pip install -r requirements.txt
 ```
 # To do
 ## Preprocessing
-- [x] Pick which group of timeseries to use
-Monthly timeseries of category `MICRO`
-- [ ] De-trend and de-seasonalize
+- [x] Pick which group of timeseries to use => Monthly timeseries of category `MICRO`
+- [x] De-trend and de-seasonalize
 ## NN Modeling
-- [ ] RNN vs MLP (**MLP recommended**)
-- [ ] **WIP**
+- [x] RNN vs MLP (**MLP recommended**) => **MLP**
+- [ ] Research
 
 ## Training
 - [ ] Pick which strategy to use for training (general purpose vs new model for every new timeseries)
