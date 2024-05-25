@@ -23,13 +23,12 @@ pip install -r requirements.txt
 - [x] De-trend and de-seasonalize
 ## NN Modeling
 - [x] RNN vs MLP (**MLP recommended**) => **MLP**
-- [ ] Research
+- [x] Research
 
 ## Training
-- [ ] Pick which strategy to use for training (general purpose vs new model for every new timeseries)
-- [ ] Pick our train, test, (validation) split? 
-- [ ] Use sMAPe for cross-validation
-- [ ] Ensure proper regularisation
+- [x] Pick which strategy to use for training (general purpose vs **new model for every new timeseries**)
+- [x] Pick our train, test, (validation) split **=> using last 18 points as test**
+- [ ] Use sMAPe for cross-validation & ensure proper regularisation **=>** **Using Optuna**
 
 
 # Useful Resources (feel free to add more)
