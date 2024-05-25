@@ -28,9 +28,12 @@ pip install -r requirements.txt
 ## Training
 - [x] Pick which strategy to use for training (general purpose vs **new model for every new timeseries**)
 - [x] Pick our train, test, (validation) split **=> using last 18 points as test**
-- [ ] Use sMAPe for cross-validation & ensure proper regularisation **=>** **Using Optuna**
+- [ ] Use sMAPe for cross-validation & ensure proper regularisation **=>** **Using Optuna w/ Habrok**
+- [ ] Split data appropriately
+- [ ] Iteravely train each model and tune it w/ Optuna
 
 
 # Useful Resources (feel free to add more)
 - https://machinelearningmastery.com/time-series-trends-in-python/ 
 - https://machinelearningmastery.com/how-to-develop-multilayer-perceptron-models-for-time-series-forecasting/ (in Keras)
+- https://github.com/optuna/optuna-examples/blob/main/pytorch/pytorch_simple.py
