@@ -1,3 +1,4 @@
+# This file contains the TimeSeriesDataset class which is used to create a dataset for time series forecasting.
 from torch.utils.data import Dataset
 import torch
 
