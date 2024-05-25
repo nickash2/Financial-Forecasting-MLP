@@ -1,8 +1,7 @@
+# This file contains the implementation of the Multi-Layer Perceptron (MLP) model and the SMAPE loss function.
 import torch  # Library for implementing Deep Neural Network
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
 
 
 class MLP(nn.Module):

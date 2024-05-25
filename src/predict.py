@@ -1,9 +1,11 @@
-# src/predict.py
-class Predictor:
-    def __init__(self, model_name):
-        # load the model
-        pass
+# Description: This file contains the code to make predictions using the trained model.
 
-    def predict(self, data):
-        # make predictions
-        pass
+
+def predict(self, data):
+    # load the model
+
+    # load the best hyperparameters
+
+    # make predictions
+
+    pass
