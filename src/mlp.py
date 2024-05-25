@@ -1,9 +1,9 @@
-import torch # Library for implementing Deep Neural Network
+import torch  # Library for implementing Deep Neural Network
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-import optuna
+
 
 class MLP(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
@@ -17,7 +17,6 @@ class MLP(nn.Module):
         out = self.relu(out)
         out = self.fc2(out)
         return out
-
 
 
 class SMAPELoss(nn.Module):
@@ -39,7 +38,3 @@ class SMAPELoss(nn.Module):
 
         # Return the mean SMAPE multiplied by 100
         return 100 * torch.mean(smape)
-
-
-
-
