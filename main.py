@@ -1,5 +1,5 @@
 from src.preprocess import preprocess, plot_preprocessed
-from src.tune import tune_model
+
 # from src.predict import Predictor
 from src.dataset import TimeSeriesDataset
 import pandas as pd
@@ -12,6 +12,12 @@ def create_dataloader(residuals, window_size, batch_size=64):
 
 
 if __name__ == "__main__":
+    # Data is preprocessed using the preprocess function
     data = preprocess()
-    print(data.head())
+    print(data)
+    # Preprocessed img of data is in the plots folder
+    # Normalize the data
     plot_preprocessed(data)
+    # Take series from the data
+    # in a loop, train test split
+    # train model & tune

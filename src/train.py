@@ -43,3 +43,29 @@ def train_epoch(model, train_loader, criterion, optimizer, model_name):
 
     torch.save(model.state_dict(), f"../models/{model_name}.pth")
     return running_loss
+
+
+def objective(trial):
+    # Define hyperparameters using trial.suggest_*
+    learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    hidden_size = trial.suggest_int("hidden_size", 50, 200)
+
+    # Define your model and optimizer with the hyperparameters
+    model = MLP(hidden_size=hidden_size)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+
+    # Define your loss function
+    criterion = SMAPELoss()
+
+    # Load your data
+    train_loader = ...  # replace with your actual train_loader
+    validation_loader = ...  # replace with your actual validation_loader
+
+    # Train the model
+    train_epoch(model, train_loader, criterion, optimizer, "trial_model")
+
+    # Evaluate the model on your validation set
+    validation_loss = evaluate(model, validation_loader, criterion)
+
+    return validation_loss
+
