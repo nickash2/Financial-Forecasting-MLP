@@ -32,6 +32,9 @@ pip install -r requirements.txt
 - [ ] Split data appropriately
 - [ ] Iteravely train each model and tune it w/ Optuna
 
+## For next consoltation meeting (8th june)
+- [] How precicting over differnt time series affects network {drop data past the min batch ?} {binning issue}?
+
 
 # Useful Resources (feel free to add more)
 - https://machinelearningmastery.com/time-series-trends-in-python/ 

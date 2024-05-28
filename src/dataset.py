@@ -14,6 +14,5 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         X = self.data[idx : idx + self.window_size]
         y = self.data[idx + self.window_size]
-        return torch.tensor(X, dtype=torch.float32), torch.tensor(
-            y, dtype=torch.float32
-        )
+        return X.clone().detach(), y.clone().detach()
+
