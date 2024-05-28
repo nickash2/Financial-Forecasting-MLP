@@ -33,8 +33,8 @@ pip install -r requirements.txt
 - [ ] Iteravely train each model and tune it w/ Optuna
 
 ## For next consoltation meeting (8th june)
-- [] How precicting over differnt time series affects network {drop data past the min batch ?} {binning issue}?
-
+- [ ] How precicting over differnt time series affects network {drop data past the min batch ?} {binning issue}?
+- [ ] We have to fix how we can keep track of each timeseries so we won't train on data that is between two timeseries
 
 # Useful Resources (feel free to add more)
 - https://machinelearningmastery.com/time-series-trends-in-python/ 
