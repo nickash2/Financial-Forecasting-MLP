@@ -1,6 +1,8 @@
 import pandas as pd
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 
 def plot_preprocessed(df_detrended):
@@ -49,25 +51,37 @@ def preprocess():
     df_monthly = df_long[df_long["Category"] == "MICRO       "]
 
     series_to_plot = df_monthly["Series"].unique()
-
+    scaler = MinMaxScaler(feature_range=(-1, 1))
     # Create an empty DataFrame to store the detrended and de-seasonalized data
     df_detrended = pd.DataFrame()
+
+    # Create a LinearRegression object
+    linreg = LinearRegression()
 
     for series in series_to_plot:
         # Filter the DataFrame for the current series
         df_filtered = df_monthly[df_monthly["Series"] == series]
 
-        # Decompose the data with period of 12 months
-        decomposition = sm.tsa.seasonal_decompose(
-            df_filtered["Value"], model="additive", period=12
-        )
+        # Get the data
+        data = df_filtered["Value"]
 
-        # Get the detrended and de-seasonalized data
-        detrended_deseasonalized = decomposition.resid
+        # Fit the linear model to the data
+        X = np.arange(len(data)).reshape(-1, 1)
+        y = data.values.reshape(-1, 1)
+        linreg.fit(X, y)
+
+        # Calculate the fitted values
+        fitted_values = linreg.predict(X)
+
+        # Subtract the fitted values from the original data to get the detrended data
+        detrended_data = data - fitted_values.flatten()
+
+        # Scale the detrended data
+        scaled_data = scaler.fit_transform(detrended_data.values.reshape(-1, 1))
 
         # Create a DataFrame for the current series
         df_current = df_filtered.copy()
-        df_current["Value"] = detrended_deseasonalized
+        df_current["Value"] = scaled_data.flatten()
 
         # Append the current DataFrame to the main DataFrame
         df_detrended = pd.concat([df_detrended, df_current])
