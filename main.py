@@ -1,6 +1,6 @@
 from src.preprocess import preprocess, plot_preprocessed
 from src.tune import tune_model
-from src.predict import Predictor
+# from src.predict import Predictor
 from src.dataset import TimeSeriesDataset
 import pandas as pd
 from torch.utils.data import DataLoader

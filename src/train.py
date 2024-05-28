@@ -2,7 +2,22 @@
 import time
 from mlp import MLP, SMAPELoss
 import optuna
-from torch import save as t
+import torch
+
+
+def evaluate(model, validation_loader, criterion):
+    model.eval()  # set the model to evaluation mode
+
+    validation_loss = 0.0
+
+    with torch.no_grad():  # disable gradient computation
+        for data, target in validation_loader:
+            outputs = model(data)
+            loss = criterion(outputs, target)
+            validation_loss += loss.item()
+
+    validation_loss /= len(validation_loader)
+    return validation_loss
 
 
 def train_epoch(model, train_loader, criterion, optimizer, model_name):
@@ -26,5 +41,5 @@ def train_epoch(model, train_loader, criterion, optimizer, model_name):
     running_loss /= len(train_loader)
     print("Training Loss: ", running_loss, "Time: ", end_time - start_time, "s")
 
-    t.save(model.state_dict(), f"../models/{model_name}.pth")
+    torch.save(model.state_dict(), f"../models/{model_name}.pth")
     return running_loss
