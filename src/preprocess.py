@@ -57,6 +57,8 @@ def preprocess():
 
     # Create a LinearRegression object
     linreg = LinearRegression()
+    df_train = pd.DataFrame()
+    df_test = pd.DataFrame()
 
     for series in series_to_plot:
         # Filter the DataFrame for the current series
@@ -76,16 +78,20 @@ def preprocess():
         # Subtract the fitted values from the original data to get the detrended data
         detrended_data = data - fitted_values.flatten()
 
-        # Scale the detrended data
-        scaled_data = scaler.fit_transform(detrended_data.values.reshape(-1, 1))
+        # Replace the 'Value' column with the detrended data
+        df_filtered.loc[:, "Value"] = detrended_data
 
-        # Create a DataFrame for the current series
-        df_current = df_filtered.copy()
-        df_current["Value"] = scaled_data.flatten()
+        # Split the data into training and test sets
+        df_train_current = df_filtered[:-18]
+        df_test_current = df_filtered[-18:]
 
-        # Append the current DataFrame to the main DataFrame
-        df_detrended = pd.concat([df_detrended, df_current])
+        # Scale the 'Value' column of the training and test data
+        df_train_current.loc[:, "Value"] = scaler.fit_transform(df_train_current["Value"].values.reshape(-1, 1))
+        df_test_current.loc[:, "Value"] = scaler.transform(df_test_current["Value"].values.reshape(-1, 1))
 
-    # Now df_detrended contains the detrended and de-seasonalized data
-    df_detrended.dropna(inplace=True)
-    return df_detrended
+        # Append the current DataFrames to the main DataFrames
+        df_train = pd.concat([df_train, df_train_current])
+        df_test = pd.concat([df_test, df_test_current])
+
+    # Now df_train contains the training data and df_test contains the test data
+    return df_train, df_test
