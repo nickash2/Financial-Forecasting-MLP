@@ -28,7 +28,7 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
     num_epochs = 50
     for epoch in range(num_epochs):
         model.train()
-        for inputs, targets, _ in train_loader:
+        for inputs, targets in train_loader:
             inputs = inputs.to(device)
             targets = targets.to(device)
             optimizer.zero_grad()
