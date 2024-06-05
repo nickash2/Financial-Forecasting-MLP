@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     # Create dataset
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
-    pruner = optuna.pruners.HyperbandPruner(min_resource='auto', max_resource='auto', reduction_factor=3)
+    pruner = optuna.pruners.HyperbandPruner(min_resource=1, max_resource='auto', reduction_factor=3)
 
     study = optuna.create_study(direction="minimize", pruner=pruner)
     
