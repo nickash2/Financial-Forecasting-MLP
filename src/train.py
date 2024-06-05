@@ -1,9 +1,7 @@
 # This file contains the training loop for the MLP model
-import time
 from .mlp import MLP, SMAPELoss
 import optuna
 import torch
-import numpy as np
 
 
 INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
@@ -26,11 +24,9 @@ def evaluate(model, validation_loader, criterion, device):
     return validation_loss
 
 
-def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, patience):
+def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial):
     model = model.to(device)
     num_epochs = 50
-    best_val_loss = float('inf')
-    counter = 0
 
     for epoch in range(num_epochs):
         model.train()
@@ -44,9 +40,11 @@ def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, p
             optimizer.step()
 
         val_loss = evaluate(model, val_loader, criterion, device)
+        trial.report(val_loss, epoch)
+        
+        if trial.should_prune():
+            raise optuna.TrialPruned()
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}, Validation Loss: {val_loss}")
-
-    return best_val_loss
 
 
 def objective(trial, train_loader, val_loader, device):
@@ -67,9 +65,12 @@ def objective(trial, train_loader, val_loader, device):
     criterion = criterion.to(device)
 
     # Train the model
-    best_val_loss = train_epoch(model, train_loader, criterion, optimizer, device, val_loader, patience=10)
+    train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial)
 
-    return best_val_loss
+    # Evaluate the model on your validation set
+    validation_loss = evaluate(model, val_loader, criterion, device)
+
+    return validation_loss
 
 
 # ASK IF WE SHOULD JUST HAVE 80 20 SPLIT OF THE WHOLE DATASET FOR TESTING

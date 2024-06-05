@@ -20,8 +20,9 @@ if __name__ == "__main__":
 
     # Create dataset
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
-    
-    study = optuna.create_study(direction="minimize")
+    pruner = optuna.pruners.HyperbandPruner(min_resource='auto', max_resource='auto', reduction_factor=3)
+
+    study = optuna.create_study(direction="minimize", pruner=pruner)
     
     for train_indices, val_indices in blocked_split.split(dataset):
         train_subset = Subset(dataset, train_indices)
@@ -36,9 +37,19 @@ if __name__ == "__main__":
         study.optimize(lambda trial: objective(trial, train_loader, val_loader, device), n_trials=50)
 
     # Print the best hyperparameters
-    print("Best trial:")
-    trial = study.best_trial
-    print(" Value: ", trial.value)
-    print(" Params: ")
-    for key, value in trial.params.items():
+
+    print("Best hyperparameters:")
+    print(study.best_params)
+    print("Best value:")
+    print(study.best_value)
+    for key, value in study.best_params.items():
         print(f"    {key}: {value}")
+
+    with open("Best_hyperparameters.txt", "w") as f:
+        f.write("Best trial:\n")
+        trial = study.best_trial
+        f.write(f" Value: {trial.value}\n")
+        f.write(" Params: \n")
+        for key, value in trial.params.items():
+            f.write(f"    {key}: {value}\n")
+
