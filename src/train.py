@@ -44,15 +44,6 @@ def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, p
             optimizer.step()
 
         val_loss = evaluate(model, val_loader, criterion, device)
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            counter = 0
-        else:
-            counter += 1
-            if counter >= patience:
-                print("Early stopping")
-                break
-
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}, Validation Loss: {val_loss}")
 
     return best_val_loss
