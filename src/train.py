@@ -5,6 +5,10 @@ import optuna
 import torch
 import numpy as np
 
+
+INPUT_SIZE = 5 # window size, can be adjusted to any value if needed
+OUTPUT_SIZE = 1 # next point
+
 def evaluate(model, validation_loader, criterion):
     model.eval()  # set the model to evaluation mode
 
@@ -39,13 +43,10 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
 def objective(trial, train_loader, val_loader, device):
     # Define hyperparameters using trial.suggest_*
     learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-    hidden_size = trial.suggest_int("hidden_size", 50, 200)
-    input_size = trial.suggest_int("input_size", 1, 64)
-    output_size = trial.suggest_int("output_size", 1, 64)
-
+    hidden_size = trial.suggest_int("hidden_size", 2, 5) 
 
     # Define your model and optimizer with the hyperparameters
-    model = MLP(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
+    model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # Define your loss function
@@ -63,3 +64,4 @@ def objective(trial, train_loader, val_loader, device):
 
     return validation_loss
 
+# ASK IF WE SHOULD JUST HAVE 80 20 SPLIT OF THE WHOLE DATASET FOR TESTING
