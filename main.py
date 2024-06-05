@@ -1,6 +1,5 @@
 from src.preprocess import preprocess, plot_preprocessed
 from src.dataset import TimeSeriesDataset
-import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from src.train import objective
