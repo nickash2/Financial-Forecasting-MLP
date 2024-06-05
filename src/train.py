@@ -26,10 +26,12 @@ def evaluate(model, validation_loader, criterion, device):
     return validation_loss
 
 
-def train_epoch(model, train_loader, criterion, optimizer, device):
+def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, patience):
     model = model.to(device)
     num_epochs = 50
-    loss = None  # Initialize loss
+    best_val_loss = float('inf')
+    counter = 0
+
     for epoch in range(num_epochs):
         model.train()
         for inputs, targets in train_loader:
@@ -41,8 +43,19 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
             loss.backward()
             optimizer.step()
 
-        if loss is not None:  # Only print loss if it has been computed
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}")
+        val_loss = evaluate(model, val_loader, criterion, device)
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            counter = 0
+        else:
+            counter += 1
+            if counter >= patience:
+                print("Early stopping")
+                break
+
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}, Validation Loss: {val_loss}")
+
+    return best_val_loss
 
 
 def objective(trial, train_loader, val_loader, device):
@@ -51,11 +64,11 @@ def objective(trial, train_loader, val_loader, device):
     hidden_size = trial.suggest_int("hidden_size", 2, 5)
     lambda_reg = trial.suggest_float("lambda_reg", 1e-5, 1e-1, log=True)
 
-    # Define your model and optimizer with the hyperparameters
+    # Define model and optimizer with the hyperparameters
     model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_reg)
 
-    # Define your loss function
+    # Define loss function
     criterion = SMAPELoss().to(device)
 
     # Move model and criterion to the device
@@ -63,12 +76,9 @@ def objective(trial, train_loader, val_loader, device):
     criterion = criterion.to(device)
 
     # Train the model
-    train_epoch(model, train_loader, criterion, optimizer, device)
+    best_val_loss = train_epoch(model, train_loader, criterion, optimizer, device, val_loader, patience=10)
 
-    # Evaluate the model on your validation set
-    validation_loss = evaluate(model, val_loader, criterion, device)
-
-    return validation_loss
+    return best_val_loss
 
 
 # ASK IF WE SHOULD JUST HAVE 80 20 SPLIT OF THE WHOLE DATASET FOR TESTING
