@@ -80,17 +80,7 @@ def preprocess():
         # Replace the 'Value' column with the detrended data
         df_filtered.loc[:, "Value"] = detrended_data
 
-        # Split the data into training and test sets
-        df_train_current = df_filtered[:-18]
-        df_test_current = df_filtered[-18:]
+        # Scale the 'Value' column of the data
+        df_filtered.loc[:, "Value"] = scaler.fit_transform(df_filtered["Value"].values.reshape(-1, 1))
 
-        # Scale the 'Value' column of the training and test data
-        df_train_current.loc[:, "Value"] = scaler.fit_transform(df_train_current["Value"].values.reshape(-1, 1))
-        df_test_current.loc[:, "Value"] = scaler.transform(df_test_current["Value"].values.reshape(-1, 1))
-
-        # Append the current DataFrames to the main DataFrames
-        df_train = pd.concat([df_train, df_train_current])
-        df_test = pd.concat([df_test, df_test_current])
-
-    # Now df_train contains the training data and df_test contains the test data
-    return df_train, df_test
+    return df_filtered
