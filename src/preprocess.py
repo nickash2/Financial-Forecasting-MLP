@@ -53,7 +53,6 @@ def preprocess():
     series_to_plot = df_monthly["Series"].unique()
     scaler = MinMaxScaler(feature_range=(-1, 1))
     # Create an empty DataFrame to store the detrended and de-seasonalized data
-    df_detrended = pd.DataFrame()
 
     # Create a LinearRegression object
     linreg = LinearRegression()
