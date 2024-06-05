@@ -22,14 +22,11 @@ if __name__ == "__main__":
     val_dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
     
     # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, drop_last=True)
     print(f"Length of train_dataset: {len(train_dataset)}")
 
-    # Print the first few items in the dataset
-    for i in range(min(5, len(train_dataset))):  # Change 5 to the number of items you want to print
-        data = train_dataset[i]
-        print(f"Item {i}: {data}")
+
 
     study = optuna.create_study(direction="minimize")
     study.optimize(lambda trial: objective(trial, train_loader, val_loader, device), n_trials=100)

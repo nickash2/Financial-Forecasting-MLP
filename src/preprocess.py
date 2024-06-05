@@ -56,8 +56,7 @@ def preprocess():
 
     # Create a LinearRegression object
     linreg = LinearRegression()
-    df_train = pd.DataFrame()
-    df_test = pd.DataFrame()
+    df_final = pd.DataFrame()
 
     for series in series_to_plot:
         # Filter the DataFrame for the current series
@@ -82,5 +81,6 @@ def preprocess():
 
         # Scale the 'Value' column of the data
         df_filtered.loc[:, "Value"] = scaler.fit_transform(df_filtered["Value"].values.reshape(-1, 1))
+        df_final = pd.concat([df_final, df_filtered])
 
-    return df_filtered
+    return df_final
