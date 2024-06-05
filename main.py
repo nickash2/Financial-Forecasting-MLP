@@ -18,8 +18,8 @@ if __name__ == "__main__":
     print("Device:", device)
 
     # Create datasets
-    train_dataset = TimeSeriesDataset(preprocessed_data, window_size=5, pred_length=1, train=True)
-    val_dataset = TimeSeriesDataset(preprocessed_data, window_size=5, pred_length=1, train=False)
+    train_dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
+    val_dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
     
     # Create dataloaders
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
