@@ -37,25 +37,27 @@ def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, t
 
     for inputs, targets in progress_bar:
         inputs = inputs.to(device)
-        targets = targets.to(device)
+        targets = targets.to(device) # Reshape the targets tensor to match the output tensor
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
 
-        val_loss = evaluate(model, val_loader, criterion, device)
         total_loss += loss.item()
 
-        progress_bar.set_postfix({"training_loss": "{:.3f}".format(loss.item()), "val_loss": val_loss})
-
-        if trial.should_prune():
-            raise optuna.TrialPruned()
-    trial.report(val_loss, epoch)
     avg_loss = total_loss / len(train_loader)
+    val_loss = evaluate(model, val_loader, criterion, device)
+    progress_bar.set_postfix({"training_loss": "{:.3f}".format(avg_loss), "val_loss": val_loss})
+
+    if trial.should_prune():
+        raise optuna.TrialPruned()
+
+    trial.report(val_loss, epoch)
     print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}, Validation Loss: {val_loss}")
 
     return avg_loss, val_loss
+
 
 def objective(trial, train_loader, val_loader, device):
     # Define hyperparameters using trial.suggest_*
@@ -68,7 +70,7 @@ def objective(trial, train_loader, val_loader, device):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_reg)
 
     # Define loss function
-    criterion = SMAPELoss().to(device)
+    criterion = torch.nn.MSELoss().to(device)
 
     # Move model and criterion to the device
     model = model.to(device)
@@ -89,6 +91,7 @@ def objective(trial, train_loader, val_loader, device):
     plt.plot(train_losses, label='Training loss')
     plt.plot(val_losses, label='Validation loss')
     plt.legend()
+    plt.ylim([0,0.3])
     plt.savefig("plots/validation_vs_training_loss.png")
 
     # Evaluate the model on your validation set
