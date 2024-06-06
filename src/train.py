@@ -2,6 +2,9 @@
 from .mlp import MLP, SMAPELoss
 import optuna
 import torch
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 
 
 INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
@@ -24,28 +27,35 @@ def evaluate(model, validation_loader, criterion, device):
     return validation_loss
 
 
-def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial):
-    model = model.to(device)
-    num_epochs = 50
 
-    for epoch in range(num_epochs):
-        model.train()
-        for inputs, targets in train_loader:
-            inputs = inputs.to(device)
-            targets = targets.to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
+def train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial, epoch, num_epochs):
+    model = model.to(device)
+    model.train()
+    total_loss = 0
+
+    progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", position=0, leave=True)
+
+    for inputs, targets in progress_bar:
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        optimizer.step()
 
         val_loss = evaluate(model, val_loader, criterion, device)
-        trial.report(val_loss, epoch)
-        
+        total_loss += loss.item()
+
+        progress_bar.set_postfix({"training_loss": "{:.3f}".format(loss.item()), "val_loss": val_loss})
+
         if trial.should_prune():
             raise optuna.TrialPruned()
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}, Validation Loss: {val_loss}")
+    trial.report(val_loss, epoch)
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}, Validation Loss: {val_loss}")
 
+    return avg_loss, val_loss
 
 def objective(trial, train_loader, val_loader, device):
     # Define hyperparameters using trial.suggest_*
@@ -65,7 +75,21 @@ def objective(trial, train_loader, val_loader, device):
     criterion = criterion.to(device)
 
     # Train the model
-    train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial)
+    num_epochs = 50
+    train_losses = []
+    val_losses = []
+    for epoch in range(num_epochs):
+        train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial, epoch, num_epochs)
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+
+
+    # Plotting
+    plt.figure()
+    plt.plot(train_losses, label='Training loss')
+    plt.plot(val_losses, label='Validation loss')
+    plt.legend()
+    plt.savefig("plots/validation_vs_training_loss.png")
 
     # Evaluate the model on your validation set
     validation_loss = evaluate(model, val_loader, criterion, device)
@@ -73,4 +97,3 @@ def objective(trial, train_loader, val_loader, device):
     return validation_loss
 
 
-# ASK IF WE SHOULD JUST HAVE 80 20 SPLIT OF THE WHOLE DATASET FOR TESTING
