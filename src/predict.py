@@ -2,6 +2,7 @@
 import torch
 from .mlp import SMAPELoss
 
+
 class Predictor:
     def __init__(self, model_path):
         self.model = torch.load(model_path)

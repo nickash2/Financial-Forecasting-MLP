@@ -80,7 +80,9 @@ def preprocess():
         df_filtered.loc[:, "Value"] = detrended_data
 
         # Scale the 'Value' column of the data
-        df_filtered.loc[:, "Value"] = scaler.fit_transform(df_filtered["Value"].values.reshape(-1, 1))
+        df_filtered.loc[:, "Value"] = scaler.fit_transform(
+            df_filtered["Value"].values.reshape(-1, 1)
+        )
         df_final = pd.concat([df_final, df_filtered])
 
     return df_final
