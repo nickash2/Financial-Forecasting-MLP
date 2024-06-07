@@ -34,7 +34,7 @@ optuna-dashboard sqlite:///data/tuning.db
 - [x] Research
 
 ## Training
-- [x] Pick which strategy to use for training (**general purpose **vs new model for every new timeseries)
+- [x] Pick which strategy to use for training (**general purpose** vs new model for every new timeseries)
 - [x] Pick our train, test, (validation) split **=> using an 80-20 split (with validation)**
 - [x] Use sMAPe for cross-validation & ensure proper regularisation **=>** **Using Optuna w/ Habrok**
 - [x] Split data appropriately **=> using blocked cross validation**
