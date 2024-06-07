@@ -20,7 +20,7 @@ def plot_best(trial):
 def preprocess_data_and_create_dataset():
     preprocessed_data = preprocess()
     plot_preprocessed(preprocessed_data)
-    print(preprocessed_data)
+    # print(preprocessed_data)
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
     return dataset
 
@@ -57,9 +57,9 @@ def non_tuning_mode_operation(train_val_data, final_train=False):
                 key, value = line.strip().split(":")
                 best_params[key.strip()] = float(value.strip())
     print(best_params)
-    print("Training the model with the best hyperparameters...")
     combined_train_val_loader = DataLoader(train_val_data, batch_size=32, shuffle=False, drop_last=True)
     if final_train:
+        print("Training the model with the best hyperparameters...")
         train_final_model(train_val_data, combined_train_val_loader, best_params, device)
     return best_params, combined_train_val_loader
 
@@ -67,15 +67,15 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
     dataset = preprocess_data_and_create_dataset()
-    study = create_study_and_pruner()
     train_val_data, test_data = split_data(dataset)
-    tuning_mode = True
+    tuning_mode = False
     if tuning_mode:
+        study = create_study_and_pruner()
         study = tuning_mode_operation(dataset, train_val_data, study, device)
         with open("study.pkl", "wb") as f:
             pickle.dump(study, f)
     else:
-        best_params, combined_train_val_loader = non_tuning_mode_operation(train_val_data)
+        best_params, combined_train_val_loader = non_tuning_mode_operation(train_val_data, final_train=False)
         with open("study.pkl", "rb") as f:
             study = pickle.load(f)
             plot_best(study)
