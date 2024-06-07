@@ -48,7 +48,7 @@ if __name__ == "__main__":
     train_val_data = Subset(dataset, train_val_indices)
     test_data = Subset(dataset, test_indices)
 
-    tuning_mode = True
+    tuning_mode = False
 
     if tuning_mode:
         blocked_split = BlockedTimeSeriesSplit(n_splits=5)

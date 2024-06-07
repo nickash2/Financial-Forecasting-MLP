@@ -6,3 +6,5 @@ pandas
 xlrd
 statsmodels
 optuna
+plotly
+kaleido
