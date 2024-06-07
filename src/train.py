@@ -78,9 +78,15 @@ def train_epoch(
     return avg_loss, val_loss
 
 
-def train_final_model(train_val_data,combined_train_val_loader, best_params, device):
-    model = MLP(input_size=INPUT_SIZE, hidden_size=int(best_params["hidden_size"]), output_size=OUTPUT_SIZE)
-    optimizer = torch.optim.Adam(model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"])
+def train_final_model(train_val_data, combined_train_val_loader, best_params, device):
+    model = MLP(
+        input_size=INPUT_SIZE,
+        hidden_size=int(best_params["hidden_size"]),
+        output_size=OUTPUT_SIZE,
+    )
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"]
+    )
     criterion = torch.nn.MSELoss().to(device)
     model = model.to(device)
     criterion = criterion.to(device)
@@ -152,4 +158,3 @@ def objective(trial, train_loader, val_loader, device):
     validation_loss = evaluate(model, val_loader, criterion, device)
 
     return validation_loss
-

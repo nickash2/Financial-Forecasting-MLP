@@ -1,11 +1,21 @@
 # Description: This file contains the code to make predictions using the trained model.
+import torch
+from .mlp import SMAPELoss
 
+class Predictor:
+    def __init__(self, model_path):
+        self.model = torch.load(model_path)
+        self.model.eval()
 
-def predict(self, data):
-    # load the model
+    def re_trend(self, data, trend):
+        pass
 
-    # load the best hyperparameters
+    def accuracy(self, data, predictions):
+        pass
 
-    # make predictions
+    def predict(self, data):
+        # load the best hyperparameters
 
-    pass
+        # make predictions
+
+        pass
