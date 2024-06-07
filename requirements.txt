@@ -8,3 +8,4 @@ statsmodels
 optuna
 plotly
 kaleido
+optuna-dashboard
