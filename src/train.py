@@ -4,7 +4,9 @@ import optuna
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-
+from torch.utils.data import DataLoader, Subset
+from .blockedcv import BlockedTimeSeriesSplit
+import numpy as np
 
 INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
 OUTPUT_SIZE = 1  # next point
@@ -123,44 +125,43 @@ def train_final_model(train_val_data, combined_train_val_loader, best_params, de
     plt.savefig("plots/final_training_validation_loss.png")
 
 
-def objective(trial, train_loader, val_loader, device):
-    # Define hyperparameters using trial.suggest_*
-    learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-    hidden_size = trial.suggest_int("hidden_size", 2, 5)
-    lambda_reg = trial.suggest_float("lambda_reg", 1e-5, 1e-1, log=True)
-
-    # Define model and optimizer with the hyperparameters
-    model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE)
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=learning_rate, weight_decay=lambda_reg
-    )
-
-    # Define loss function
-    criterion = SMAPELoss()
-    # Move model and criterion to the device
-    model = model.to(device)
-    criterion = criterion.to(device)
-
-    # Train the model
-    num_epochs = 50
-    train_losses = []
+def objective(trial, dataset, device, n_splits=5):
+    blocked_split = BlockedTimeSeriesSplit(n_splits=n_splits)
     val_losses = []
-    for epoch in range(num_epochs):
-        train_loss, val_loss = train_epoch(
-            model,
-            train_loader,
-            criterion,
-            optimizer,
-            device,
-            val_loader,
-            trial,
-            epoch,
-            num_epochs,
-        )
-        train_losses.append(train_loss)
+
+    for train_indices, val_indices in blocked_split.split(dataset):
+        # Define hyperparameters using trial.suggest_*
+        learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+        hidden_size = trial.suggest_int("hidden_size", 2, 5)
+        lambda_reg = trial.suggest_float("lambda_reg", 1e-5, 1e-1, log=True)
+
+        
+        train_subset = Subset(dataset, train_indices.tolist())
+        val_subset = Subset(dataset, val_indices.tolist())
+        train_loader = DataLoader(train_subset, batch_size=32, shuffle=False, drop_last=True)
+        val_loader = DataLoader(val_subset, batch_size=32, shuffle=False, drop_last=True)
+
+        # Define model and optimizer with the hyperparameters
+        model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE).to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_reg)
+
+        # Define loss function
+        criterion = SMAPELoss().to(device)
+
+        # Train the model
+        num_epochs = 50
+        train_losses = []
+        val_losses = []
+        for epoch in range(num_epochs):
+            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial, epoch, num_epochs)
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+        # Evaluate the model on the validation set
         val_losses.append(val_loss)
 
-    # Evaluate the model on your validation set
-    validation_loss = evaluate(model, val_loader, criterion, device)
+    # Calculate the average validation loss across folds
+    avg_val_loss = np.mean(val_losses)
 
-    return validation_loss
+    return avg_val_loss
+
