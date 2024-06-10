@@ -51,7 +51,7 @@ def split_data(dataset):
 def tuning_mode_operation(dataset, study, device):
     study.optimize(
             lambda trial: objective(trial, dataset, device),
-            n_trials=300,
+            n_trials=1000,
     )
     return study
 
