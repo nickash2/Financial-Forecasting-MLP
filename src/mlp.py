@@ -3,9 +3,11 @@ import torch  # Library for implementing Deep Neural Network
 import torch.nn as nn
 import torch.nn.functional as F
 
+INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
+OUTPUT_SIZE = 1  # next point
 
 class MLP(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size=INPUT_SIZE, hidden_size=4, output_size=OUTPUT_SIZE):
         super(MLP, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.relu = nn.ReLU()
