@@ -7,6 +7,8 @@ from src.train import objective, train_final_model
 import optuna
 import matplotlib.pyplot as plt
 import pickle
+from src.predict import Predictor
+import numpy as np
 
 
 def plot_best(trial):
@@ -101,3 +103,34 @@ if __name__ == "__main__":
         with open("study.pkl", "rb") as f:
             study = pickle.load(f)
             plot_best(study)
+
+    # Do predictions
+    predictor = Predictor(model_path="models/final_model.pth", device=device)
+
+    test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
+
+    predictions = []
+    for i in range(len(test_windows)):
+        window = test_windows[i].numpy()
+        next_prediction = predictor.predict_next(window)
+        predictions.append(next_prediction)
+        print(f"Window {i}: {window} -> Next predicted point: {next_prediction}")
+
+    predictions = np.array(predictions)
+    true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
+
+
+    # Plot predictions vs actual values
+    plt.figure(figsize=(10, 6))
+    plt.plot(true_values, label='Actual', color='blue')
+    plt.plot(predictions, label='Predicted', color='red')
+    plt.title('Test Data: Actual vs Predicted')
+    plt.xlabel('Time')
+    plt.ylabel('Value')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # Calculate the SMAPE
+    smape_value = predictor.accuracy(true_values, predictions)
+    print(f"SMAPE: {smape_value:.2f}%")

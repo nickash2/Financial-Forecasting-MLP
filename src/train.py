@@ -87,33 +87,40 @@ def train_final_model(train_val_data, combined_train_val_loader, best_params, de
     optimizer = torch.optim.Adam(
         model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"]
     )
-    criterion = torch.nn.MSELoss().to(device)
+    criterion = SMAPELoss()
     model = model.to(device)
     criterion = criterion.to(device)
     num_epochs = 50
-    all_train_losses = []
+
+    train_losses = []
+    val_losses = []
+
     for epoch in range(num_epochs):
-        model.train()
-        total_loss = 0
-        for inputs, targets in combined_train_val_loader:
-            inputs, targets = inputs.to(device), targets.to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        avg_loss = total_loss / len(combined_train_val_loader)
-        all_train_losses.append(avg_loss)
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss}")
+        train_loss, val_loss = train_epoch(
+            model,
+            combined_train_val_loader,
+            criterion,
+            optimizer,
+            device,
+            combined_train_val_loader,  # Use combined_train_val_loader for validation
+            None,  # trial is not needed in final training
+            epoch,
+            num_epochs,
+        )
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+
     torch.save(model.state_dict(), "models/final_model.pth")
+
+    # Plot training and validation losses
     plt.figure()
-    plt.plot(all_train_losses, label="Training loss")
-    plt.legend()
+    plt.plot(train_losses, label="Training Loss")
+    plt.plot(val_losses, label="Validation Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title("Training Loss over Epochs")
-    plt.savefig("plots/final_training_loss.png")
+    plt.title("Training and Validation Losses")
+    plt.legend()
+    plt.savefig("plots/final_training_validation_loss.png")
 
 
 def objective(trial, train_loader, val_loader, device):
@@ -129,8 +136,7 @@ def objective(trial, train_loader, val_loader, device):
     )
 
     # Define loss function
-    criterion = torch.nn.MSELoss().to(device)
-
+    criterion = SMAPELoss()
     # Move model and criterion to the device
     model = model.to(device)
     criterion = criterion.to(device)
