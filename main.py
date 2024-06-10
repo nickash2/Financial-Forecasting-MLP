@@ -60,7 +60,7 @@ def tuning_mode_operation(dataset, train_val_data, study, device):
         )
         study.optimize(
             lambda trial: objective(trial, train_loader, val_loader, device),
-            n_trials=50,
+            n_trials=100,
         )
     return study
 
