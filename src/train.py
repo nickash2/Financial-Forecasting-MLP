@@ -36,6 +36,7 @@ def train_epoch(
     train_loader,
     criterion,
     optimizer,
+    scheduler,  # Include scheduler
     device,
     val_loader,
     trial,
@@ -52,9 +53,7 @@ def train_epoch(
 
     for inputs, targets in progress_bar:
         inputs = inputs.to(device)
-        targets = targets.to(
-            device
-        )  # Reshape the targets tensor to match the output tensor
+        targets = targets.to(device)  # Reshape the targets tensor to match the output tensor
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
@@ -65,6 +64,7 @@ def train_epoch(
 
     avg_loss = total_loss / len(train_loader)
     val_loss = evaluate(model, val_loader, criterion, device)
+    scheduler.step(val_loss)  # Update learning rate based on validation loss
     progress_bar.set_postfix(
         {"training_loss": "{:.3f}".format(avg_loss), "val_loss": val_loss}
     )
@@ -89,6 +89,7 @@ def train_final_model(train_val_data, combined_train_val_loader, best_params, de
     optimizer = torch.optim.Adam(
         model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"]
     )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
     criterion = SMAPELoss()
     model = model.to(device)
     criterion = criterion.to(device)
@@ -103,11 +104,12 @@ def train_final_model(train_val_data, combined_train_val_loader, best_params, de
             combined_train_val_loader,
             criterion,
             optimizer,
+            scheduler,  # Include scheduler
             device,
             combined_train_val_loader,  # Use combined_train_val_loader for validation
             None,  # trial is not needed in final training
             epoch,
-            num_epochs,
+            num_epochs=num_epochs,
         )
         train_losses.append(train_loss)
         val_losses.append(val_loss)
@@ -131,11 +133,10 @@ def objective(trial, dataset, device, n_splits=5):
 
     for train_indices, val_indices in blocked_split.split(dataset):
         # Define hyperparameters using trial.suggest_*
-        learning_rate = trial.suggest_float("lr", 1e-7, 1e-5, log=True)
+        learning_rate = trial.suggest_float("lr", 1e-7, 1e-1, log=True)
         hidden_size = trial.suggest_int("hidden_size", 2, 8)
-        lambda_reg = trial.suggest_float("lambda_reg", 1e-5, 10, log=True)
+        lambda_reg = trial.suggest_float("lambda_reg", 1e-7, 1.0, log=True)  # Increased upper limit
 
-        
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
         train_loader = DataLoader(train_subset, batch_size=32, shuffle=False, drop_last=True)
@@ -145,23 +146,36 @@ def objective(trial, dataset, device, n_splits=5):
         model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_reg)
 
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
+
+
         # Define loss function
         criterion = SMAPELoss().to(device)
 
         # Train the model
         num_epochs = 50
         train_losses = []
-        val_losses = []
+        val_losses_fold = []
         for epoch in range(num_epochs):
-            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial, epoch, num_epochs)
+            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer,scheduler ,device, val_loader, trial, epoch=epoch, num_epochs=num_epochs)
             train_losses.append(train_loss)
-            val_losses.append(val_loss)
+            val_losses_fold.append(val_loss)
 
         # Evaluate the model on the validation set
         val_losses.append(val_loss)
 
     # Calculate the average validation loss across folds
     avg_val_loss = np.mean(val_losses)
+
+    # Plot training and validation losses for each trial
+    plt.figure()
+    plt.plot(train_losses, label="Training Loss")
+    plt.plot(val_losses_fold, label="Validation Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title(f"Training and Validation Losses for Trial {trial.number}")
+    plt.legend()
+    plt.savefig(f"plots/trial_{trial.number}_training_validation_loss.png")
 
     return avg_val_loss
 

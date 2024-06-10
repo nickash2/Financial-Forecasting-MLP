@@ -29,10 +29,11 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning3",
+        study_name="MLP-Tuning4",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
+        load_if_exists=True,
     )
     return study
 
