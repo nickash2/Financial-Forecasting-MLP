@@ -29,7 +29,7 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning",
+        study_name="MLP-Tuning3",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
@@ -50,7 +50,7 @@ def split_data(dataset):
 def tuning_mode_operation(dataset, study, device):
     study.optimize(
             lambda trial: objective(trial, dataset, device),
-            n_trials=100,
+            n_trials=300,
     )
     return study
 
