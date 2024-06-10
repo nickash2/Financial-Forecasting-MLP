@@ -131,9 +131,9 @@ def objective(trial, dataset, device, n_splits=5):
 
     for train_indices, val_indices in blocked_split.split(dataset):
         # Define hyperparameters using trial.suggest_*
-        learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-        hidden_size = trial.suggest_int("hidden_size", 2, 5)
-        lambda_reg = trial.suggest_float("lambda_reg", 1e-5, 1e-1, log=True)
+        learning_rate = trial.suggest_float("lr", 1e-7, 1e-5, log=True)
+        hidden_size = trial.suggest_int("hidden_size", 2, 8)
+        lambda_reg = trial.suggest_float("lambda_reg", 1e-5, 10, log=True)
 
         
         train_subset = Subset(dataset, train_indices.tolist())
