@@ -47,21 +47,11 @@ def split_data(dataset):
     return train_val_data, test_data
 
 
-def tuning_mode_operation(dataset, train_val_data, study, device):
-    blocked_split = BlockedTimeSeriesSplit(n_splits=5)
-    for train_indices, val_indices in blocked_split.split(train_val_data):
-        train_subset = Subset(dataset, train_indices.tolist())
-        val_subset = Subset(dataset, val_indices.tolist())
-        train_loader = DataLoader(
-            train_subset, batch_size=32, shuffle=False, drop_last=True
-        )
-        val_loader = DataLoader(
-            val_subset, batch_size=32, shuffle=False, drop_last=True
-        )
-        study.optimize(
-            lambda trial: objective(trial, train_loader, val_loader, device),
+def tuning_mode_operation(dataset, study, device):
+    study.optimize(
+            lambda trial: objective(trial, dataset, device),
             n_trials=100,
-        )
+    )
     return study
 
 
@@ -93,7 +83,7 @@ if __name__ == "__main__":
     tuning_mode = True
     if tuning_mode:
         study = create_study_and_pruner()
-        study = tuning_mode_operation(dataset, train_val_data, study, device)
+        study = tuning_mode_operation(dataset, study, device)
         with open("study.pkl", "wb") as f:
             pickle.dump(study, f)
     else:
