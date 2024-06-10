@@ -36,27 +36,24 @@ def train_epoch(
     train_loader,
     criterion,
     optimizer,
-    # scheduler,  # Include scheduler
+    # scheduler,  # Uncomment if you use scheduler
     device,
     val_loader,
     trial,
     epoch,
     num_epochs,
     early_stopping_patience=10,
+    best_val_loss=float('inf'),  # Initialize here
 ):
     model = model.to(device)
     model.train()
     total_loss = 0
     early_stopping_counter = 0
-    best_val_loss = float('inf')
 
-    progress_bar = tqdm(
-        train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", position=0, leave=True
-    )
+    progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", position=0, leave=True)
 
     for inputs, targets in progress_bar:
-        inputs = inputs.to(device)
-        targets = targets.to(device)  # Reshape the targets tensor to match the output tensor
+        inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
@@ -67,30 +64,27 @@ def train_epoch(
 
     avg_loss = total_loss / len(train_loader)
     val_loss = evaluate(model, val_loader, criterion, device)
-    # scheduler.step(val_loss)  # Update learning rate based on validation loss
-    progress_bar.set_postfix(
-        {"training_loss": "{:.3f}".format(avg_loss), "val_loss": val_loss}
-    )
+    # scheduler.step(val_loss)  # Uncomment if you use scheduler
 
-    trial.report(val_loss, epoch)
+    progress_bar.set_postfix({"training_loss": "{:.3f}".format(avg_loss), "val_loss": val_loss})
+
     if trial is not None:
+        trial.report(val_loss, epoch)
+        if trial.should_prune():
+            raise optuna.TrialPruned()
+
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             early_stopping_counter = 0
         else:
             early_stopping_counter += 1
 
-
         if early_stopping_counter >= early_stopping_patience:
             print("Early stopping triggered")
-            return best_val_loss  # Report the best validation loss
-
-    if trial is not None and trial.should_prune():
-        raise optuna.TrialPruned()
+            return avg_loss, val_loss, best_val_loss  # Return best_val_loss
 
     print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}, Validation Loss: {val_loss}")
-    return avg_loss, val_loss
-
+    return avg_loss, val_loss, best_val_loss
 
 def train_final_model(train_val_data, combined_train_val_loader, best_params, device):
     model = MLP(
@@ -147,7 +141,7 @@ def objective(trial, dataset, device, n_splits=5):
         # Define hyperparameters using trial.suggest_*
         learning_rate = trial.suggest_float("lr", 1e-7, 1e-1, log=True)
         hidden_size = trial.suggest_int("hidden_size", 2, 8)
-        lambda_reg = trial.suggest_float("lambda_reg", 1e-7, 1.0, log=True)  # Increased upper limit
+        lambda_reg = trial.suggest_float("lambda_reg", 1e-7, 1.0, log=True)
 
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
@@ -160,7 +154,6 @@ def objective(trial, dataset, device, n_splits=5):
 
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
 
-
         # Define loss function
         criterion = SMAPELoss().to(device)
 
@@ -168,8 +161,13 @@ def objective(trial, dataset, device, n_splits=5):
         num_epochs = 50
         train_losses = []
         val_losses_fold = []
+
+        best_val_loss = float('inf')  # Initialize best_val_loss
+
         for epoch in range(num_epochs):
-            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer,device, val_loader, trial, epoch=epoch, num_epochs=num_epochs)
+            train_loss, val_loss, best_val_loss = train_epoch(
+                model, train_loader, criterion, optimizer, device, val_loader, trial, epoch=epoch, num_epochs=num_epochs, best_val_loss=best_val_loss
+            )
             train_losses.append(train_loss)
             val_losses_fold.append(val_loss)
 
