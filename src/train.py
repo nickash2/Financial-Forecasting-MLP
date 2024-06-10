@@ -36,7 +36,7 @@ def train_epoch(
     train_loader,
     criterion,
     optimizer,
-    scheduler,  # Include scheduler
+    # scheduler,  # Include scheduler
     device,
     val_loader,
     trial,
@@ -67,11 +67,12 @@ def train_epoch(
 
     avg_loss = total_loss / len(train_loader)
     val_loss = evaluate(model, val_loader, criterion, device)
-    scheduler.step(val_loss)  # Update learning rate based on validation loss
+    # scheduler.step(val_loss)  # Update learning rate based on validation loss
     progress_bar.set_postfix(
         {"training_loss": "{:.3f}".format(avg_loss), "val_loss": val_loss}
     )
 
+    trial.report(val_loss, epoch)
     if trial is not None:
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -79,17 +80,15 @@ def train_epoch(
         else:
             early_stopping_counter += 1
 
+
         if early_stopping_counter >= early_stopping_patience:
             print("Early stopping triggered")
-            trial.report(val_loss, epoch)
-            raise optuna.TrialPruned()
+            return best_val_loss  # Report the best validation loss
 
-    trial.report(val_loss, epoch)
-    if trial.should_prune():
+    if trial is not None and trial.should_prune():
         raise optuna.TrialPruned()
 
     print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}, Validation Loss: {val_loss}")
-
     return avg_loss, val_loss
 
 
@@ -152,14 +151,14 @@ def objective(trial, dataset, device, n_splits=5):
 
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
-        train_loader = DataLoader(train_subset, batch_size=32, shuffle=False, drop_last=True)
-        val_loader = DataLoader(val_subset, batch_size=32, shuffle=False, drop_last=True)
+        train_loader = DataLoader(train_subset, batch_size=32, shuffle=False, drop_last=False)
+        val_loader = DataLoader(val_subset, batch_size=32, shuffle=False, drop_last=False)
 
         # Define model and optimizer with the hyperparameters
         model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_reg)
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
 
 
         # Define loss function
@@ -170,7 +169,7 @@ def objective(trial, dataset, device, n_splits=5):
         train_losses = []
         val_losses_fold = []
         for epoch in range(num_epochs):
-            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer,scheduler ,device, val_loader, trial, epoch=epoch, num_epochs=num_epochs)
+            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer,device, val_loader, trial, epoch=epoch, num_epochs=num_epochs)
             train_losses.append(train_loss)
             val_losses_fold.append(val_loss)
 
