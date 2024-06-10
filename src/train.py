@@ -42,10 +42,13 @@ def train_epoch(
     trial,
     epoch,
     num_epochs,
+    early_stopping_patience=10,
 ):
     model = model.to(device)
     model.train()
     total_loss = 0
+    early_stopping_counter = 0
+    best_val_loss = float('inf')
 
     progress_bar = tqdm(
         train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", position=0, leave=True
@@ -69,13 +72,23 @@ def train_epoch(
         {"training_loss": "{:.3f}".format(avg_loss), "val_loss": val_loss}
     )
 
+    if trial is not None:
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            early_stopping_counter = 0
+        else:
+            early_stopping_counter += 1
+
+        if early_stopping_counter >= early_stopping_patience:
+            print("Early stopping triggered")
+            trial.report(val_loss, epoch)
+            raise optuna.TrialPruned()
+
+    trial.report(val_loss, epoch)
     if trial.should_prune():
         raise optuna.TrialPruned()
 
-    trial.report(val_loss, epoch)
-    print(
-        f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}, Validation Loss: {val_loss}"
-    )
+    print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}, Validation Loss: {val_loss}")
 
     return avg_loss, val_loss
 
