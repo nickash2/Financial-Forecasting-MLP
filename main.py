@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import pickle
 from src.predict import Predictor
 import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
 
 
 def plot_best(trial):
@@ -16,12 +19,25 @@ def plot_best(trial):
     fig.write_image("plots/optimization_history.png")
 
 
-def preprocess_data_and_create_dataset():
-    preprocessed_data = preprocess()
-    plot_preprocessed(preprocessed_data)
+
+def add_trend_back(series_detrended, series_name, series_info):
+    # Get the trend, mean, and sd for this series
+    info = series_info[series_name]
+    trend = info['trend']
+    mean = info['mean']
+    sd = info['sd']
+
+    # Add the trend back to the series
+    series = (series_detrended * sd) + mean + trend
+
+    return series
+
+def preprocess_data_and_create_dataset(dataset, name):
+    preprocessed_data, series_info = preprocess(dataset)
     # print(preprocessed_data)
+    plot_preprocessed(preprocessed_data, name)
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
-    return dataset
+    return dataset, series_info
 
 
 def create_study_and_pruner():
@@ -29,7 +45,7 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning5",
+        study_name="MLP-Tuning-11-06",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
@@ -38,14 +54,9 @@ def create_study_and_pruner():
     return study
 
 
-def split_data(dataset):
-    test_size = int(len(dataset) * 0.2)
-    train_val_size = len(dataset) - test_size
-    train_val_indices = list(range(train_val_size))
-    test_indices = list(range(train_val_size, len(dataset)))
-    train_val_data = Subset(dataset, train_val_indices)
-    test_data = Subset(dataset, test_indices)
-    return train_val_data, test_data
+def split_data(df):
+    train_val_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
+    return train_val_df, test_df
 
 
 def tuning_mode_operation(dataset, study, device):
@@ -54,6 +65,11 @@ def tuning_mode_operation(dataset, study, device):
             n_trials=100,
     )
     return study
+
+def load_data():
+    df = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
+    df.dropna(axis=1, inplace=True)
+    return df
 
 
 def non_tuning_mode_operation(train_val_data, final_train=False):
@@ -79,21 +95,23 @@ def non_tuning_mode_operation(train_val_data, final_train=False):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
-    dataset = preprocess_data_and_create_dataset()
-    train_val_data, test_data = split_data(dataset)
+
+    raw_data = load_data()
+
+    train_val_data_raw, test_data_raw = split_data(raw_data)
+
+    train_val_data, train_series_info = preprocess_data_and_create_dataset(train_val_data_raw, "train")
+    test_data, test_series_info = preprocess_data_and_create_dataset(test_data_raw, "test")
+    # print(test_series_info)
     tuning_mode = True
     if tuning_mode:
         study = create_study_and_pruner()
-        study = tuning_mode_operation(dataset, study, device)
-        with open("study.pkl", "wb") as f:
-            pickle.dump(study, f)
+        study = tuning_mode_operation(train_val_data, study, device)
+
     else:
         best_params, combined_train_val_loader = non_tuning_mode_operation(
             train_val_data, final_train=False
         )
-        with open("study.pkl", "rb") as f:
-            study = pickle.load(f)
-            plot_best(study)
 
         # Do predictions
         predictor = Predictor(model_path="models/final_model.pth", device=device)
@@ -109,12 +127,24 @@ if __name__ == "__main__":
 
         predictions = np.array(predictions)
         true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
+        
 
+        # Make empty arrays to store the predictions and true values with the trend added back
+        predictions_with_trend = np.empty_like(predictions)
+        true_values_with_trend = np.empty_like(true_values)
+        
+        series_names = list(test_series_info.keys())
 
+        for i, series_name in enumerate(series_names):
+            # Add the trend back to the predictions and true values for this series
+            predictions_with_trend[i] = add_trend_back(predictions[i], series_name, test_series_info)
+            true_values_with_trend[i] = add_trend_back(true_values[i], series_name, test_series_info)
+
+        
         # Plot predictions vs actual values
         plt.figure(figsize=(10, 6))
-        plt.plot(true_values, label='Actual', color='blue')
-        plt.plot(predictions, label='Predicted', color='red')
+        plt.plot(true_values_with_trend, label='Actual', color='blue')
+        plt.plot(predictions_with_trend, label='Predicted', color='red')
         plt.title('Test Data: Actual vs Predicted')
         plt.xlabel('Time')
         plt.ylabel('Value')
@@ -123,5 +153,5 @@ if __name__ == "__main__":
         plt.show()
 
         # Calculate the SMAPE
-        smape_value = predictor.accuracy(true_values, predictions)
+        smape_value = predictor.accuracy(true_values_with_trend, predictions_with_trend)
         print(f"SMAPE: {smape_value:.2f}%")
