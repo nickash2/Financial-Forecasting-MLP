@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --time=4:00:00
-#SBATCH --nodes=2
+#SBATCH --time=6:00:00
+#SBATCH --nodes=1
 #SBATCH --mem=16GB
 #SBATCH --ntasks-per-node=1
-#SBATCH --output=job-newblockedcv-%j.log
+#SBATCH --output=training-%j.log
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 
