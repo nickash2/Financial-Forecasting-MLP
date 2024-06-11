@@ -120,7 +120,7 @@ def train_final_model(train_val_data, combined_train_val_loader, best_params, de
             combined_train_val_loader,  # Use combined_train_val_loader for validation
             None,  # trial is not needed in final training
             epoch,
-            num_epochs=num_epochs,
+            num_epochs=num_epochs, # type: ignore
         )
         train_losses.append(train_loss)
         val_losses.append(val_loss)
@@ -167,7 +167,7 @@ def objective(trial, dataset, device, n_splits=5):
         train_losses = []
         val_losses_fold = []
         for epoch in range(num_epochs):
-            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer,device, val_loader, trial, epoch=epoch, num_epochs=num_epochs)
+            train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer,device, val_loader, trial, epoch=epoch, num_epochs=num_epochs) # type: ignore
             train_losses.append(train_loss)
             val_losses_fold.append(val_loss)
 
@@ -185,7 +185,7 @@ def objective(trial, dataset, device, n_splits=5):
     plt.ylabel("Loss")
     plt.title(f"Training and Validation Losses for Trial {trial.number}")
     plt.legend()
-    plt.savefig(f"plots/trial_{trial.number}_training_validation_loss.png")
+    plt.savefig(f"plots/trials/trial_{trial.number}_training_validation_loss.png")
 
     return avg_val_loss
 
