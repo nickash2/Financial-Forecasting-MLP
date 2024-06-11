@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Subset
 from .blockedcv import BlockedTimeSeriesSplit
 import numpy as np
 
-INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
+INPUT_SIZE = 3  # window size, can be adjusted to any value if needed
 OUTPUT_SIZE = 1  # next point
 
 
@@ -56,7 +56,7 @@ def train_epoch(
 
     for inputs, targets in progress_bar:
         inputs = inputs.to(device)
-        targets = targets.to(device)  # Reshape the targets tensor to match the output tensor
+        targets = targets.to(device).view(-1, 1)  # Reshape the targets tensor to match the output tensor
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
@@ -145,16 +145,17 @@ def objective(trial, dataset, device, n_splits=5):
     for train_indices, val_indices in blocked_split.split(dataset):
         # Define hyperparameters using trial.suggest_*
         learning_rate = trial.suggest_float("lr", 1e-7, 1e-1, log=True)
-        hidden_size = trial.suggest_int("hidden_size", 2, 8)
+        hidden_size = trial.suggest_categorical("hidden_size", [2**i for i in range(4, 7)])
         lambda_reg = trial.suggest_float("lambda_reg", 1e-7, 1.0, log=True)  # Increased upper limit
+        hidden_layers = trial.suggest_int("hidden_layers", 1, 7)
 
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
-        train_loader = DataLoader(train_subset, batch_size=32, shuffle=False, drop_last=False)
+        train_loader = DataLoader(train_subset, batch_size=32, shuffle=False, drop_last=True)
         val_loader = DataLoader(val_subset, batch_size=32, shuffle=False, drop_last=False)
 
         # Define model and optimizer with the hyperparameters
-        model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE).to(device)
+        model = MLP(input_size=INPUT_SIZE, hidden_size=hidden_size, output_size=OUTPUT_SIZE, num_layers=hidden_layers).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_reg)
 
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
