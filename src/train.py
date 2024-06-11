@@ -101,7 +101,7 @@ def train_final_model(train_val_data, combined_train_val_loader, best_params, de
         model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"]
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
-    criterion = SMAPELoss()
+    criterion = torch.nn.L1Loss()
     model = model.to(device)
     criterion = criterion.to(device)
     num_epochs = 50
@@ -159,9 +159,8 @@ def objective(trial, dataset, device, n_splits=5):
 
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-7)
 
-
         # Define loss function
-        criterion = SMAPELoss().to(device)
+        criterion = torch.nn.L1Loss()
 
         # Train the model
         num_epochs = 50
