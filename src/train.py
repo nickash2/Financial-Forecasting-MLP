@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Subset
 from .blockedcv import BlockedTimeSeriesSplit
 import numpy as np
 
-INPUT_SIZE = 3  # window size, can be adjusted to any value if needed
+INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
 OUTPUT_SIZE = 1  # next point
 
 
