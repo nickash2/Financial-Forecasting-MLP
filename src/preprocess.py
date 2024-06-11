@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import pickle
 
-
-def plot_preprocessed(df_detrended):
+def plot_preprocessed(df_detrended, name):
     series_to_plot = df_detrended["Series"].unique()
 
     # Calculate the number of rows needed for subplots
@@ -31,16 +31,14 @@ def plot_preprocessed(df_detrended):
         ax.set_title(f"Series: {series}")
         ax.grid(True)
 
-    plt.savefig("plots/preprocessed_series.png")
+    plt.savefig(f"plots/preprocessed_series_{name}.png")
 
 
-def preprocess():
-    df = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
-    df.dropna(axis=1, inplace=True)
+def preprocess(dataset):
 
     # *As* the data is in wide format, we convert it to a long format.
     df_long = pd.melt(
-        df,
+        dataset,
         id_vars=["Series", "N", "NF", "Category", "Starting Year", "Starting Month"],
         var_name="Month",
         value_name="Value",
@@ -58,6 +56,12 @@ def preprocess():
     linreg = LinearRegression()
     df_final = pd.DataFrame()
 
+    # add dict with all linreg models for each series
+
+    # ((x-retrended - trend) - mean)/sd = x-detrended
+
+    series_info = {}
+
     for series in series_to_plot:
         # Filter the DataFrame for the current series
         df_filtered = df_monthly[df_monthly["Series"] == series]
@@ -70,11 +74,18 @@ def preprocess():
         y = data.values.reshape(-1, 1)
         linreg.fit(X, y)
 
-        # Calculate the fitted values
+        # Calculate the fitted values (trend)
         fitted_values = linreg.predict(X)
 
         # Subtract the fitted values from the original data to get the detrended data
         detrended_data = data - fitted_values.flatten()
+
+        # Calculate mean and sd before scaling
+        mean = detrended_data.mean()
+        sd = detrended_data.std()
+
+        # Store the trend, mean, and sd in the series_info dictionary
+        series_info[series] = {'trend': fitted_values, 'mean': mean, 'sd': sd}
 
         # Replace the 'Value' column with the detrended data
         df_filtered.loc[:, "Value"] = detrended_data
@@ -85,4 +96,4 @@ def preprocess():
         )
         df_final = pd.concat([df_final, df_filtered])
 
-    return df_final
+    return df_final, series_info
