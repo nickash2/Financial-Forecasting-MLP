@@ -45,7 +45,7 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning-11-06",
+        study_name="MLP-Tuning-12-06L",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
@@ -127,31 +127,45 @@ if __name__ == "__main__":
 
         predictions = np.array(predictions)
         true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
-        
 
-        # Make empty arrays to store the predictions and true values with the trend added back
-        predictions_with_trend = np.empty_like(predictions)
-        true_values_with_trend = np.empty_like(true_values)
-        
-        series_names = list(test_series_info.keys())
+        from sklearn.metrics import mean_absolute_error
+        mae = mean_absolute_error(true_values, predictions)
+        print(f"Mean Absolute Error: {mae}")
 
-        for i, series_name in enumerate(series_names):
-            # Add the trend back to the predictions and true values for this series
-            predictions_with_trend[i] = add_trend_back(predictions[i], series_name, test_series_info)
-            true_values_with_trend[i] = add_trend_back(true_values[i], series_name, test_series_info)
 
-        
-        # Plot predictions vs actual values
-        plt.figure(figsize=(10, 6))
-        plt.plot(true_values_with_trend, label='Actual', color='blue')
-        plt.plot(predictions_with_trend, label='Predicted', color='red')
-        plt.title('Test Data: Actual vs Predicted')
-        plt.xlabel('Time')
+        # Create a plot
+        plt.figure(figsize=(10,6))
+        plt.plot(true_values, label='True Values')
+        plt.plot(predictions, label='Predictions')
+        plt.title('Predictions vs True Values')
+        plt.xlabel('Observation')
         plt.ylabel('Value')
         plt.legend()
-        plt.grid(True)
         plt.show()
 
+        # # Make empty arrays to store the predictions and true values with the trend added back
+        # predictions_with_trend = np.empty_like(predictions)
+        # true_values_with_trend = np.empty_like(true_values)
+        
+        # series_names = list(test_series_info.keys())
+
+        # for i, series_name in enumerate(series_names):
+        #     # Add the trend back to the predictions and true values for this series
+        #     predictions_with_trend[i] = add_trend_back(predictions[i], series_name, test_series_info)
+        #     true_values_with_trend[i] = add_trend_back(true_values[i], series_name, test_series_info)
+
+        
+        # # Plot predictions vs actual values
+        # plt.figure(figsize=(10, 6))
+        # plt.plot(true_values_with_trend, label='Actual', color='blue')
+        # plt.plot(predictions_with_trend, label='Predicted', color='red')
+        # plt.title('Test Data: Actual vs Predicted')
+        # plt.xlabel('Time')
+        # plt.ylabel('Value')
+        # plt.legend()
+        # plt.grid(True)
+        # plt.show()
+
         # Calculate the SMAPE
-        smape_value = predictor.accuracy(true_values_with_trend, predictions_with_trend)
-        print(f"SMAPE: {smape_value:.2f}%")
+        # smape_value = predictor.accuracy(true_values_with_trend, predictions_with_trend)
+        # print(f"SMAPE: {smape_value:.2f}%")

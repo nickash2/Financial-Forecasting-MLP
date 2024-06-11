@@ -1,6 +1,6 @@
 Best trial
  Value 0.17611139081418514
  Params
-    lr: 0.001322101750216104
-    hidden_size: 4
-    lambda_reg: 0.0002375695239682069
+    lr: 0.0011431343129623371
+    hidden_size: 8
+    lambda_reg: 6.844699777984373e-07
