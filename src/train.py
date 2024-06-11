@@ -148,6 +148,7 @@ def objective(trial, dataset, device, n_splits=5):
         hidden_size = trial.suggest_categorical("hidden_size", [2**i for i in range(4, 7)])
         lambda_reg = trial.suggest_float("lambda_reg", 1e-7, 1.0, log=True)  # Increased upper limit
         hidden_layers = trial.suggest_int("hidden_layers", 1, 7)
+        num_epochs = trial.suggest_int("num_epochs", 50, 100)
 
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
@@ -164,7 +165,6 @@ def objective(trial, dataset, device, n_splits=5):
         criterion = torch.nn.L1Loss()
 
         # Train the model
-        num_epochs = 50
         train_losses = []
         val_losses_fold = []
         for epoch in range(num_epochs):
