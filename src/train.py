@@ -24,6 +24,7 @@ def evaluate(model, validation_loader, criterion, device):
                 target.to(device),
             )  # Move data and target to the correct device
             outputs = model(data)
+            outputs = outputs.view(-1)
             loss = criterion(outputs, target)
             validation_loss += loss.item()
 
@@ -53,11 +54,11 @@ def train_epoch(
 
     for inputs, targets in progress_bar:
         inputs = inputs.to(device)
-        targets = targets.to(device).view(
-            -1, 1
-        )  # Reshape the targets tensor to match the output tensor
+         # Reshape the targets tensor to match the output tensor
+        targets = targets.to(device).view(-1) 
         optimizer.zero_grad()
         outputs = model(inputs)
+        outputs = outputs.view(-1)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
@@ -110,11 +111,10 @@ def train_final_model(train_loader, best_params, device):
 
         for inputs, targets in progress_bar:
             inputs = inputs.to(device)
-            targets = targets.to(device).view(
-                -1, 1
-            )  # Reshape the targets tensor to match the output tensor
+            targets = targets.to(device).view(-1)  # Reshape the targets tensor to match the output tensor
             optimizer.zero_grad()
             outputs = model(inputs)
+            outputs = outputs.view(-1)
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
@@ -159,7 +159,7 @@ def objective(trial, dataset, device, n_splits=5):
             "lambda_reg", 1e-7, 1.0, log=True
         )  # Increased upper limit
         hidden_layers = trial.suggest_int("hidden_layers", 1, 7)
-        num_epochs = trial.suggest_int("num_epochs", 50, 100, step=10)
+        num_epochs = trial.suggest_int("num_epochs", 10, 50, step=10)
 
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
