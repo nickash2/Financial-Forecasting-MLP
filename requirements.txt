@@ -1,6 +1,6 @@
 torch
 matplotlib
-scikit-learn
+scikit - learn
 numpy
 pandas
 xlrd
@@ -8,4 +8,4 @@ statsmodels
 optuna
 plotly
 kaleido
-optuna-dashboard
+optuna - dashboard
