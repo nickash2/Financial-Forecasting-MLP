@@ -6,18 +6,25 @@ import torch.nn as nn
 INPUT_SIZE = 5  # window size, can be adjusted to any value if needed
 OUTPUT_SIZE = 1  # next point
 
+
 class MLP(nn.Module):
-    def __init__(self, input_size=INPUT_SIZE, hidden_size=32, output_size=OUTPUT_SIZE, num_layers=2):
+    def __init__(
+        self,
+        input_size=INPUT_SIZE,
+        hidden_size=32,
+        output_size=OUTPUT_SIZE,
+        num_layers=2,
+    ):
         super(MLP, self).__init__()
         self.hidden_layers = nn.ModuleList()
-        
+
         # Input layer
         self.hidden_layers.append(nn.Linear(input_size, hidden_size))
-        
+
         # Hidden layers
         for _ in range(num_layers - 1):
             self.hidden_layers.append(nn.Linear(hidden_size, hidden_size))
-        
+
         # Output layer
         self.output_layer = nn.Linear(hidden_size, output_size)
         self.relu = nn.ReLU()

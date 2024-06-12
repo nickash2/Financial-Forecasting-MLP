@@ -5,6 +5,7 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import pickle
 
+
 def plot_preprocessed(df_detrended, name):
     series_to_plot = df_detrended["Series"].unique()
 
@@ -85,7 +86,7 @@ def preprocess(dataset):
         sd = detrended_data.std()
 
         # Store the trend, mean, and sd in the series_info dictionary
-        series_info[series] = {'trend': fitted_values, 'mean': mean, 'sd': sd}
+        series_info[series] = {"trend": fitted_values, "mean": mean, "sd": sd}
 
         # Replace the 'Value' column with the detrended data
         df_filtered.loc[:, "Value"] = detrended_data

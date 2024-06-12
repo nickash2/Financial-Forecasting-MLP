@@ -13,24 +13,23 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 
-
 def plot_best(trial):
     fig = optuna.visualization.plot_optimization_history(trial)
     fig.write_image("plots/optimization_history.png")
 
 
-
 def add_trend_back(series_detrended, series_name, series_info):
     # Get the trend, mean, and sd for this series
     info = series_info[series_name]
-    trend = info['trend']
-    mean = info['mean']
-    sd = info['sd']
+    trend = info["trend"]
+    mean = info["mean"]
+    sd = info["sd"]
 
     # Add the trend back to the series
     series = (series_detrended * sd) + mean + trend
 
     return series
+
 
 def preprocess_data_and_create_dataset(dataset, name):
     preprocessed_data, series_info = preprocess(dataset)
@@ -45,7 +44,7 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning-12-06L",
+        study_name="MLP-Tuning-12-06",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
@@ -61,10 +60,11 @@ def split_data(df):
 
 def tuning_mode_operation(dataset, study, device):
     study.optimize(
-            lambda trial: objective(trial, dataset, device),
-            n_trials=1000,
+        lambda trial: objective(trial, dataset, device),
+        n_trials=500,
     )
     return study
+
 
 def load_data():
     df = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
@@ -74,7 +74,7 @@ def load_data():
 
 def non_tuning_mode_operation(train_val_data, final_train=False):
     best_params = {}
-    with open("habrok_output/06-06/Best_hyperparameters.txt", "r") as f:
+    with open("habrok_output/12-06/Best_hyperparameters.txt", "r") as f:
         lines = f.readlines()
         for line in lines:
             if ":" in line:
@@ -87,7 +87,7 @@ def non_tuning_mode_operation(train_val_data, final_train=False):
     if final_train:
         print("Training the model with the best hyperparameters...")
         train_final_model(
-            train_val_data, combined_train_val_loader, best_params, device
+            combined_train_val_loader, best_params, device
         )
     return best_params, combined_train_val_loader
 
@@ -100,13 +100,20 @@ if __name__ == "__main__":
 
     train_val_data_raw, test_data_raw = split_data(raw_data)
 
-    train_val_data, train_series_info = preprocess_data_and_create_dataset(train_val_data_raw, "train")
-    test_data, test_series_info = preprocess_data_and_create_dataset(test_data_raw, "test")
+    train_val_data, train_series_info = preprocess_data_and_create_dataset(
+        train_val_data_raw, "train"
+    )
+    test_data, test_series_info = preprocess_data_and_create_dataset(
+        test_data_raw, "test"
+    )
     # print(test_series_info)
     tuning_mode = True
     if tuning_mode:
         study = create_study_and_pruner()
         study = tuning_mode_operation(train_val_data, study, device)
+        with open("habrok_output/12-06/Best_hyperparameters.txt", "w") as f:
+            for key, value in study.best_params.items():
+                f.write(f"{key}: {value}\n")
 
     else:
         best_params, combined_train_val_loader = non_tuning_mode_operation(
@@ -126,27 +133,29 @@ if __name__ == "__main__":
             print(f"Window {i}: {window} -> Next predicted point: {next_prediction}")
 
         predictions = np.array(predictions)
-        true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
+        true_values = torch.tensor(
+            [test_data[i][1] for i in range(len(test_data))]
+        ).numpy()
 
         from sklearn.metrics import mean_absolute_error
+
         mae = mean_absolute_error(true_values, predictions)
         print(f"Mean Absolute Error: {mae}")
 
-
         # Create a plot
-        plt.figure(figsize=(10,6))
-        plt.plot(true_values, label='True Values')
-        plt.plot(predictions, label='Predictions')
-        plt.title('Predictions vs True Values')
-        plt.xlabel('Observation')
-        plt.ylabel('Value')
+        plt.figure(figsize=(10, 6))
+        plt.plot(true_values, label="True Values")
+        plt.plot(predictions, label="Predictions")
+        plt.title("Predictions vs True Values")
+        plt.xlabel("Observation")
+        plt.ylabel("Value")
         plt.legend()
         plt.show()
 
         # # Make empty arrays to store the predictions and true values with the trend added back
         # predictions_with_trend = np.empty_like(predictions)
         # true_values_with_trend = np.empty_like(true_values)
-        
+
         # series_names = list(test_series_info.keys())
 
         # for i, series_name in enumerate(series_names):
@@ -154,7 +163,6 @@ if __name__ == "__main__":
         #     predictions_with_trend[i] = add_trend_back(predictions[i], series_name, test_series_info)
         #     true_values_with_trend[i] = add_trend_back(true_values[i], series_name, test_series_info)
 
-        
         # # Plot predictions vs actual values
         # plt.figure(figsize=(10, 6))
         # plt.plot(true_values_with_trend, label='Actual', color='blue')
