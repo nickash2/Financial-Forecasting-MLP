@@ -17,6 +17,10 @@ class MLP(nn.Module):
     ):
         super(MLP, self).__init__()
         self.hidden_layers = nn.ModuleList()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.output_size = output_size
 
         # Input layer
         self.hidden_layers.append(nn.Linear(input_size, hidden_size))
