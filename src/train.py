@@ -84,13 +84,21 @@ def train_epoch(
 
 
 def train_final_model(train_loader, best_params, device):
+    window_size = int(best_params["window_size"])
+    hidden_size = int(best_params["hidden_size"])
+    num_layers = int(best_params["hidden_layers"])
+    num_epochs = int(best_params["num_epochs"])
 
+    
+    # print(f"Training final model with window_size={window_size}, hidden_size={hidden_size}, num_layers={num_layers}, num_epochs={num_epochs}")
+    
     model = MLP(
-        input_size=INPUT_SIZE,
-        hidden_size=int(best_params["hidden_size"]),
+        input_size=window_size,  # Use the window_size as the input_size
+        hidden_size=hidden_size,
         output_size=OUTPUT_SIZE,
-        num_layers=int(best_params["hidden_layers"])
-    )
+        num_layers=num_layers
+    ).to(device)
+    
     optimizer = torch.optim.Adam(
         model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"]
     )
@@ -98,7 +106,6 @@ def train_final_model(train_loader, best_params, device):
     criterion = torch.nn.L1Loss()
     model = model.to(device)
     criterion = criterion.to(device)
-    num_epochs = best_params["num_epochs"]
 
     train_losses = []
 
@@ -110,6 +117,7 @@ def train_final_model(train_loader, best_params, device):
         )
 
         for inputs, targets in progress_bar:
+            # print(f"Input shape: {inputs.shape}")  # Debug statement
             inputs = inputs.to(device)
             targets = targets.to(device).view(-1)  # Reshape the targets tensor to match the output tensor
             optimizer.zero_grad()
@@ -145,22 +153,27 @@ def train_final_model(train_loader, best_params, device):
     plt.savefig("plots/final_training_loss.png")
 
 
-def objective(trial, dataset, device, n_splits=5):
+
+
+
+def objective(trial, dataset, device, n_splits=5, early_stopping_patience=10):
     blocked_split = BlockedTimeSeriesSplit(n_splits=n_splits)
     val_losses = []
 
-    for train_indices, val_indices in blocked_split.split(dataset):
-        # Define hyperparameters using trial.suggest_*
-        learning_rate = trial.suggest_float("lr", 1e-7, 1e-1, log=True)
-        hidden_size = trial.suggest_categorical(
-            "hidden_size", [2**i for i in range(4, 7)]
-        )
-        lambda_reg = trial.suggest_float(
-            "lambda_reg", 1e-7, 1.0, log=True
-        )  # Increased upper limit
-        hidden_layers = trial.suggest_int("hidden_layers", 1, 7)
-        num_epochs = trial.suggest_int("num_epochs", 10, 50, step=10)
+    # Define hyperparameters using trial.suggest_*
+    learning_rate = trial.suggest_float("lr", 1e-3, 1e-1, log=True)
+    hidden_size = trial.suggest_categorical(
+        "hidden_size", [2**i for i in range(4, 7)]
+    )
+    lambda_reg = trial.suggest_float(
+        "lambda_reg", 1e-4, 1e-2, log=True
+    )  # Increased upper limit
+    hidden_layers = trial.suggest_int("hidden_layers", 1, 5)
+    num_epochs = trial.suggest_int("num_epochs", 20, 40, step=5)
+    window_size = trial.suggest_int("window_size", 2, 5)
+    dataset.window_size = window_size
 
+    for fold, (train_indices, val_indices) in enumerate(blocked_split.split(dataset)):
         train_subset = Subset(dataset, train_indices.tolist())
         val_subset = Subset(dataset, val_indices.tolist())
         train_loader = DataLoader(
@@ -172,7 +185,7 @@ def objective(trial, dataset, device, n_splits=5):
 
         # Define model and optimizer with the hyperparameters
         model = MLP(
-            input_size=INPUT_SIZE,
+            input_size=window_size,
             hidden_size=hidden_size,
             output_size=OUTPUT_SIZE,
             num_layers=hidden_layers,
@@ -188,13 +201,32 @@ def objective(trial, dataset, device, n_splits=5):
         # Train the model
         train_losses = []
         val_losses_fold = []
+        best_val_loss = float('inf')
+        early_stopping_counter = 0
+
         for epoch in range(num_epochs):
             train_loss, val_loss = train_epoch(model, train_loader, criterion, optimizer, device, val_loader, trial, epoch=epoch, num_epochs=num_epochs)  # type: ignore
             train_losses.append(train_loss)
             val_losses_fold.append(val_loss)
 
+            # Early stopping check
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                early_stopping_counter = 0
+            else:
+                early_stopping_counter += 1
+
+            if early_stopping_counter >= early_stopping_patience:
+                print(f"\n- - - - -Early stopping triggered at epoch {epoch+1} - - - - -\n")
+                break
+
         # Evaluate the model on the validation set
         val_losses.append(val_loss)
+
+        # Check if the trial should be pruned after each fold
+        if trial.should_prune():
+            print(f"Trial {trial.number} pruned after fold {fold+1}")
+            raise optuna.TrialPruned()
 
     # Calculate the average validation loss across folds
     avg_val_loss = np.mean(val_losses)

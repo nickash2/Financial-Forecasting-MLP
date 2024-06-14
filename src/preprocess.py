@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 import numpy as np
 import pickle
 
@@ -35,7 +35,7 @@ def plot_preprocessed(df_detrended, name):
     plt.savefig(f"plots/preprocessed_series_{name}.png")
 
 
-def preprocess(dataset):
+def preprocess(dataset, test=False):
 
     # *As* the data is in wide format, we convert it to a long format.
     df_long = pd.melt(
@@ -50,18 +50,20 @@ def preprocess(dataset):
     df_monthly = df_long[df_long["Category"] == "MICRO       "]
 
     series_to_plot = df_monthly["Series"].unique()
-    scaler = MinMaxScaler(feature_range=(-1, 1))
+    if not test:  # if we are training
+        scaler = MinMaxScaler(feature_range=(-1, 1))
+    else: # if we are testing
+        with open("data/train_scaler.pkl", 'rb') as f:
+            scaler = pickle.load(f)
     # Create an empty DataFrame to store the detrended and de-seasonalized data
-
-    # Create a LinearRegression object
-    linreg = LinearRegression()
     df_final = pd.DataFrame()
 
-    # add dict with all linreg models for each series
-
-    # ((x-retrended - trend) - mean)/sd = x-detrended
-
-    series_info = {}
+    # Create a LinearRegression object
+    if test:
+        with open("data/linear_regr.pkl", "rb") as f:
+            ridge = pickle.load(f)
+    else:
+        ridge = Ridge(alpha=1.0)
 
     for series in series_to_plot:
         # Filter the DataFrame for the current series
@@ -73,28 +75,38 @@ def preprocess(dataset):
         # Fit the linear model to the data
         X = np.arange(len(data)).reshape(-1, 1)
         y = data.values.reshape(-1, 1)
-        linreg.fit(X, y)
 
-        # Calculate the fitted values (trend)
-        fitted_values = linreg.predict(X)
+        if not test:
+            ridge.fit(X, y)
+
+        # Calculate the fitted values
+        fitted_values = ridge.predict(X)
 
         # Subtract the fitted values from the original data to get the detrended data
         detrended_data = data - fitted_values.flatten()
-
-        # Calculate mean and sd before scaling
-        mean = detrended_data.mean()
-        sd = detrended_data.std()
-
-        # Store the trend, mean, and sd in the series_info dictionary
-        series_info[series] = {"trend": fitted_values, "mean": mean, "sd": sd}
 
         # Replace the 'Value' column with the detrended data
         df_filtered.loc[:, "Value"] = detrended_data
 
         # Scale the 'Value' column of the data
-        df_filtered.loc[:, "Value"] = scaler.fit_transform(
-            df_filtered["Value"].values.reshape(-1, 1)
-        )
+        if not test:
+            df_filtered.loc[:, "Value"] = scaler.fit_transform(
+                df_filtered["Value"].values.reshape(-1, 1)
+            )
+        else:
+            df_filtered.loc[:, "Value"] = scaler.transform(
+                df_filtered["Value"].values.reshape(-1, 1)
+            )
         df_final = pd.concat([df_final, df_filtered])
+    
+    if not test:
+        with open("data/linear_regr.pkl", "wb") as f:
+            pickle.dump(ridge, f)
+        with open("data/train_scaler.pkl", 'wb') as f:
+            pickle.dump(scaler, f)
+    
+    
+    return df_final
 
-    return df_final, series_info
+
+
