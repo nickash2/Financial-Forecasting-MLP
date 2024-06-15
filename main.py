@@ -9,6 +9,7 @@ from src.preprocess import preprocess, plot_preprocessed
 from src.dataset import TimeSeriesDataset
 from src.train import objective, train_final_model
 from src.predict import Predictor
+from src.mlp import SMAPELoss
 from sklearn.metrics import mean_absolute_error
 import pickle
 
@@ -22,12 +23,23 @@ def load_data():
     return df
 
 def split_data(df):
-    train_val_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
+    # Filter for the "MICRO" category
+    micro_df = df[df["Category"].str.strip() == "MICRO"]
+    non_micro_df = df[df["Category"].str.strip() != "MICRO"]
+    
+    # Split the micro category data into train and test sets
+    micro_train_val_df, micro_test_df = train_test_split(micro_df, test_size=0.2, shuffle=False)
+    
+    # Combine non-micro data back with the respective micro splits
+    train_val_df = micro_train_val_df
+    test_df = micro_test_df
+    
     return train_val_df, test_df
 
 def preprocess_data_and_create_dataset(dataset, name, test):
     preprocessed_data = preprocess(dataset, test)
     plot_preprocessed(preprocessed_data, name)
+    print(preprocessed_data['Value'])
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
     return dataset
 
@@ -36,7 +48,7 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning-14-06-N6",
+        study_name="MLP-Tuning-15-06-N",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
@@ -44,10 +56,10 @@ def create_study_and_pruner():
     )
     return study
 
-def tuning_mode_operation(dataset, study, device):
+def tuning_mode_operation(dataset, study, device, n_trials=100):
     study.optimize(
         lambda trial: objective(trial, dataset, device),
-        n_trials=500,
+        n_trials=n_trials,
     )
     return study
 
@@ -92,7 +104,9 @@ if __name__ == "__main__":
         test_data_raw, "test", test=True
     )
 
-    tuning_mode = True
+
+    tuning_mode = False  # runs the tuning mode wwith the optuna study
+    train_model = False  # trains the final model with hyperparams
     if tuning_mode:
         study = create_study_and_pruner()
         study = tuning_mode_operation(train_val_data, study, device)
@@ -102,7 +116,7 @@ if __name__ == "__main__":
 
     else:
         best_params, combined_train_val_loader = non_tuning_mode_operation(
-            train_val_data, final_train=False
+            train_val_data, final_train=train_model
         )
         print(best_params)
 
@@ -123,7 +137,7 @@ if __name__ == "__main__":
 
         predictions = np.array(predictions)
         true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
-        print(predictions)
+        print("Predictions", predictions)
 
         # Calculate Mean Absolute Error (MAE)
         mae = mean_absolute_error(true_values, predictions)
@@ -141,8 +155,8 @@ if __name__ == "__main__":
         print("True values shape:", true_values.shape)
 
         # Print the first 10 predictions and true_values before undoing normalization
-        print("Raw predictions:", predictions[:10])
-        print("Raw true values:", true_values[:10])
+        print("Raw predictions:", predictions[:300])
+        print("Raw true values:", true_values[3100])
 
         adjusted_predictions = predictor.undo_normalization(predictions, scaler)
         true_values_df = predictor.undo_normalization(true_values, scaler)
@@ -151,17 +165,22 @@ if __name__ == "__main__":
         retrend_test = predictor.retrend_data(true_values_df)
 
 
-        print("Adjusted Predictions:", adjusted_predictions[:10])
-        print("True Values:", true_values_df[:10])
+        print("Adjusted Predictions:", adjusted_predictions[:300])
+        print("True Values:", true_values_df[:300])
 
         # Plot adjusted predictions
-        time_index = np.arange(10)
+        time_index = np.arange(300)
         plt.figure(figsize=(10, 5))
-        plt.plot(time_index, retrend_test[:10], label="True Values")
-        plt.plot(time_index, retrended_prediction[:10], label="Adjusted Predictions", linestyle="--")
+        plt.plot(time_index, retrend_test[:300], label="True Values")
+        plt.plot(time_index, retrended_prediction[:300], label="Adjusted Predictions", linestyle="--")
         plt.xlabel("Time Index")
         plt.ylabel("Value")
         plt.title("True Values and Adjusted Predictions")
         plt.legend()
         plt.savefig("plots/true_values_vs_adjusted_predictions.png")
+        # calculate the smape
+        smape_loss = SMAPELoss()
+        smape = smape_loss.forward(retrend_test, retrended_prediction)
+
+        print(f"SMAPE: {smape.item()}%")
         

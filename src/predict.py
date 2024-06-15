@@ -17,7 +17,7 @@ class Predictor:
         num_layers = int(best_params['hidden_layers'])  # Convert to int if necessary
         
         # Initialize an instance of MLP with the extracted parameters
-        self.model = MLP(input_size, hidden_size, output_size, num_layers)
+        self.model = torch.load("models/final_model.pth")
         
         # Move model to device (GPU if available)
         if torch.cuda.is_available():
@@ -71,6 +71,7 @@ class Predictor:
             linreg = pickle.load(f)
             coef = linreg.coef_
             intercept = linreg.intercept_
+            print(coef, intercept)
             # add coefficients and intercepts to the data meow
             data = data * coef + intercept
         return data.flatten()

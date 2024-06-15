@@ -46,8 +46,8 @@ class SMAPELoss(nn.Module):
 
     def forward(self, y_true, y_pred):
         # Ensure that the inputs are floats
-        y_true = y_true.float()
-        y_pred = y_pred.float()
+        y_true = torch.from_numpy(y_true).float()
+        y_pred = torch.from_numpy(y_pred).float()  # Corrected line
 
         # Calculate the numerator and denominator
         numerator = torch.abs(y_pred - y_true)
