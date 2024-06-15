@@ -34,9 +34,8 @@ def plot_preprocessed(df_detrended, name):
     plt.savefig(f"plots/preprocessed_series_{name}.png")
 
 
-def preprocess(dataset, test=False):
 
-    # *As* the data is in wide format, we convert it to a long format.
+def preprocess(dataset, test=False):
     df_long = pd.melt(
         dataset,
         id_vars=["Series", "N", "NF", "Category", "Starting Year", "Starting Month"],
@@ -45,45 +44,33 @@ def preprocess(dataset, test=False):
     )
 
     series_to_plot = df_long["Series"].unique()
-    if not test:  # if we are training
+    if not test:
         scaler = MinMaxScaler(feature_range=(-1, 1))
-    else: # if we are testing
+    else:
         with open("data/train_scaler.pkl", 'rb') as f:
             scaler = pickle.load(f)
-    # Create an empty DataFrame to store the detrended and de-seasonalized data
+    
     df_final = pd.DataFrame()
-
-    # Create a LinearRegression object
     if test:
         with open("data/linear_regr.pkl", "rb") as f:
             lasso = pickle.load(f)
     else:
-        lasso = Lasso(alpha=4.28937605146261, max_iter=6950)
+        lasso = Lasso(alpha=2.5, max_iter=6950)
 
     for series in series_to_plot:
-        # Filter the DataFrame for the current series
         df_filtered = df_long[df_long["Series"] == series]
-
-        # Get the data
         data = df_filtered["Value"]
 
-        # Fit the linear model to the data
         X = np.arange(len(data)).reshape(-1, 1)
         y = data.values.reshape(-1, 1)
 
         if not test:
             lasso.fit(X, y)
 
-        # Calculate the fitted values
         fitted_values = lasso.predict(X)
-
-        # Subtract the fitted values from the original data to get the detrended data
         detrended_data = data - fitted_values.flatten()
-
-        # Replace the 'Value' column with the detrended data
         df_filtered.loc[:, "Value"] = detrended_data
 
-        # Scale the 'Value' column of the data
         if not test:
             df_filtered.loc[:, "Value"] = scaler.fit_transform(
                 df_filtered["Value"].values.reshape(-1, 1)
@@ -92,6 +79,7 @@ def preprocess(dataset, test=False):
             df_filtered.loc[:, "Value"] = scaler.transform(
                 df_filtered["Value"].values.reshape(-1, 1)
             )
+
         df_final = pd.concat([df_final, df_filtered])
 
     if not test:
@@ -99,6 +87,7 @@ def preprocess(dataset, test=False):
             pickle.dump(lasso, f)
         with open("data/train_scaler.pkl", 'wb') as f:
             pickle.dump(scaler, f)
+
     return df_final
 
 

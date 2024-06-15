@@ -26,9 +26,9 @@ def split_data(df):
     # Filter for the "MICRO" category
     micro_df = df[df["Category"].str.strip() == "MICRO"]
     non_micro_df = df[df["Category"].str.strip() != "MICRO"]
-    
+
     # Split the micro category data into train and test sets
-    micro_train_val_df, micro_test_df = train_test_split(micro_df, test_size=0.2, shuffle=False)
+    micro_train_val_df, micro_test_df = train_test_split(micro_df, test_size=0.2, shuffle=True, random_state=122)
     
     # Combine non-micro data back with the respective micro splits
     train_val_df = micro_train_val_df
@@ -88,12 +88,8 @@ def non_tuning_mode_operation(train_val_data, final_train=False):
     return best_params, combined_train_val_loader
 
 
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Device:", device)
-
+def load_and_preprocess_data():
     raw_data = load_data()
-
     train_val_data_raw, test_data_raw = split_data(raw_data)
 
     train_val_data = preprocess_data_and_create_dataset(
@@ -103,84 +99,111 @@ if __name__ == "__main__":
     test_data = preprocess_data_and_create_dataset(
         test_data_raw, "test", test=True
     )
+    
+    return train_val_data, test_data
 
+def run_tuning_mode(train_val_data, device):
+    study = create_study_and_pruner()
+    study = tuning_mode_operation(train_val_data, study, device)
+    with open("habrok_output/12-06/Best_hyperparameters.txt", "w") as f:
+        for key, value in study.best_params.items():
+            f.write(f"{key}: {value}\n")
+
+def run_non_tuning_mode(train_val_data, device, train_model):
+    best_params, combined_train_val_loader = non_tuning_mode_operation(
+        train_val_data, final_train=train_model
+    )
+    print(best_params)
+
+    # Load the predictor model for making predictions
+    predictor = Predictor(best_params=best_params, device=device)
+    test_data.window_size = int(best_params["window_size"])
+
+    # Prepare test windows for predictions
+    test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
+
+    # Predict using the loaded model
+    predictions = []
+    for i in range(len(test_windows)):
+        window = test_windows[i].numpy()
+        next_prediction = predictor.predict_next(window)
+        predictions.append(next_prediction)
+
+    return predictions, best_params, predictor
+
+def plot_raw_data(train_data, test_data):
+    plt.figure(figsize=(12, 6))
+    plt.plot(train_data, label='Raw Training Data', color='blue')
+    plt.plot(test_data, label='Raw Test Data', color='orange')
+    plt.xlabel('Time Index')
+    plt.ylabel('Value')
+    plt.title('Raw Training and Test Data Comparison')
+    plt.legend()
+    plt.show()
+
+def calculate_and_print_metrics(predictions, test_data, best_params, predictor, train_val_data):
+    predictions = np.array(predictions)
+    true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
+    print("Predictions", predictions)
+
+    # Calculate Mean Absolute Error (MAE)
+    mae = mean_absolute_error(true_values, predictions)
+    print(f"Mean Absolute Error: {mae}")
+
+    # Adjust predictions based on training data trends and average scaler
+    scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
+
+    # Print the scaler min_ and scale_ attributes
+    print("Scaler min:", scaler.min_)
+    print("Scaler scale:", scaler.scale_)
+
+    # Print the shape of predictions and true_values
+    print("Predictions shape:", predictions.shape)
+    print("True values shape:", true_values.shape)
+
+    # Print the first 10 predictions and true_values before undoing normalization
+    print("Raw predictions:", predictions[300:700])
+    print("Raw true values:", true_values[300:700])
+
+    adjusted_predictions = predictor.undo_normalization(predictions, scaler)
+    true_values_df = predictor.undo_normalization(true_values, scaler)
+
+    retrended_prediction = predictor.retrend_data(adjusted_predictions)
+    retrend_test = predictor.retrend_data(true_values_df)
+
+    print("Adjusted Predictions:", adjusted_predictions[300:700])
+    print("True Values:", true_values_df[300:700])
+
+    # Plot adjusted predictions
+    time_index = np.arange(300)
+    plt.figure(figsize=(10, 5))
+    plt.plot(time_index, retrend_test[:300], label="True Values")
+    plt.plot(time_index, retrended_prediction[:300], label="Prediction", linestyle="--")
+
+    plt.xlabel("Time Index")
+    plt.ylabel("Value")
+    plt.title("True Values and Adjusted Predictions")
+    plt.legend()
+    plt.savefig("plots/true_values_and_adjusted_predictions.png")
+    # calculate the smape
+    smape_loss = SMAPELoss()
+    smape = smape_loss.forward(retrend_test, retrended_prediction)
+
+    print(f"SMAPE: {smape.item()}%")
+
+
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Device:", device)
+
+    train_val_data, test_data = load_and_preprocess_data()
 
     tuning_mode = False  # runs the tuning mode wwith the optuna study
     train_model = False  # trains the final model with hyperparams
+
     if tuning_mode:
-        study = create_study_and_pruner()
-        study = tuning_mode_operation(train_val_data, study, device)
-        with open("habrok_output/12-06/Best_hyperparameters.txt", "w") as f:
-            for key, value in study.best_params.items():
-                f.write(f"{key}: {value}\n")
-
+        run_tuning_mode(train_val_data, device)
     else:
-        best_params, combined_train_val_loader = non_tuning_mode_operation(
-            train_val_data, final_train=train_model
-        )
-        print(best_params)
-
-        # Load the predictor model for making predictions
-        predictor = Predictor(best_params=best_params, device=device)
-        test_data.window_size = int(best_params["window_size"])
-
-        # Prepare test windows for predictions
-        test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
-
-        # Predict using the loaded model
-        predictions = []
-        for i in range(len(test_windows)):
-            window = test_windows[i].numpy()
-            next_prediction = predictor.predict_next(window)
-            predictions.append(next_prediction)
-            # print(f"Window {i}: {window} -> Next predicted point: {next_prediction}")
-
-        predictions = np.array(predictions)
-        true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
-        print("Predictions", predictions)
-
-        # Calculate Mean Absolute Error (MAE)
-        mae = mean_absolute_error(true_values, predictions)
-        print(f"Mean Absolute Error: {mae}")
-
-        # Adjust predictions based on training data trends and average scaler
-        scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
-
-        # Print the scaler min_ and scale_ attributes
-        print("Scaler min:", scaler.min_)
-        print("Scaler scale:", scaler.scale_)
-
-        # Print the shape of predictions and true_values
-        print("Predictions shape:", predictions.shape)
-        print("True values shape:", true_values.shape)
-
-        # Print the first 10 predictions and true_values before undoing normalization
-        print("Raw predictions:", predictions[:300])
-        print("Raw true values:", true_values[3100])
-
-        adjusted_predictions = predictor.undo_normalization(predictions, scaler)
-        true_values_df = predictor.undo_normalization(true_values, scaler)
-
-        retrended_prediction = predictor.retrend_data(adjusted_predictions)
-        retrend_test = predictor.retrend_data(true_values_df)
-
-
-        print("Adjusted Predictions:", adjusted_predictions[:300])
-        print("True Values:", true_values_df[:300])
-
-        # Plot adjusted predictions
-        time_index = np.arange(300)
-        plt.figure(figsize=(10, 5))
-        plt.plot(time_index, retrend_test[:300], label="True Values")
-        plt.plot(time_index, retrended_prediction[:300], label="Adjusted Predictions", linestyle="--")
-        plt.xlabel("Time Index")
-        plt.ylabel("Value")
-        plt.title("True Values and Adjusted Predictions")
-        plt.legend()
-        plt.savefig("plots/true_values_vs_adjusted_predictions.png")
-        # calculate the smape
-        smape_loss = SMAPELoss()
-        smape = smape_loss.forward(retrend_test, retrended_prediction)
-
-        print(f"SMAPE: {smape.item()}%")
-        
+        predictions, best_params, predictor = run_non_tuning_mode(train_val_data, device, train_model)
+        calculate_and_print_metrics(predictions, test_data, best_params, predictor, train_val_data)
+        plot_raw_data(train_val_data.data, test_data.data)
