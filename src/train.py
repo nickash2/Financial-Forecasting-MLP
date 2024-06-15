@@ -141,7 +141,7 @@ def train_final_model(train_loader, best_params, device):
             f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}"
         )
 
-    torch.save(model.state_dict(), "models/final_model.pth")
+    torch.save(model, "models/final_model.pth")   # change this to save model.
 
     # Plot training losses
     plt.figure()

@@ -1,14 +1,13 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
 import numpy as np
 import pickle
 
 
 def plot_preprocessed(df_detrended, name):
     series_to_plot = df_detrended["Series"].unique()
-
     # Calculate the number of rows needed for subplots
     n = 9
     ncols = 3
@@ -45,11 +44,7 @@ def preprocess(dataset, test=False):
         value_name="Value",
     )
 
-    # To pick our group of interest, we decided to pick the "Micro", as it has a lot more data.
-
-    df_monthly = df_long[df_long["Category"] == "MICRO       "]
-
-    series_to_plot = df_monthly["Series"].unique()
+    series_to_plot = df_long["Series"].unique()
     if not test:  # if we are training
         scaler = MinMaxScaler(feature_range=(-1, 1))
     else: # if we are testing
@@ -61,13 +56,13 @@ def preprocess(dataset, test=False):
     # Create a LinearRegression object
     if test:
         with open("data/linear_regr.pkl", "rb") as f:
-            ridge = pickle.load(f)
+            lasso = pickle.load(f)
     else:
-        ridge = Ridge(alpha=1.0)
+        lasso = Lasso(alpha=4.28937605146261, max_iter=6950)
 
     for series in series_to_plot:
         # Filter the DataFrame for the current series
-        df_filtered = df_monthly[df_monthly["Series"] == series]
+        df_filtered = df_long[df_long["Series"] == series]
 
         # Get the data
         data = df_filtered["Value"]
@@ -77,10 +72,10 @@ def preprocess(dataset, test=False):
         y = data.values.reshape(-1, 1)
 
         if not test:
-            ridge.fit(X, y)
+            lasso.fit(X, y)
 
         # Calculate the fitted values
-        fitted_values = ridge.predict(X)
+        fitted_values = lasso.predict(X)
 
         # Subtract the fitted values from the original data to get the detrended data
         detrended_data = data - fitted_values.flatten()
@@ -98,14 +93,12 @@ def preprocess(dataset, test=False):
                 df_filtered["Value"].values.reshape(-1, 1)
             )
         df_final = pd.concat([df_final, df_filtered])
-    
+
     if not test:
         with open("data/linear_regr.pkl", "wb") as f:
-            pickle.dump(ridge, f)
+            pickle.dump(lasso, f)
         with open("data/train_scaler.pkl", 'wb') as f:
             pickle.dump(scaler, f)
-    
-    
     return df_final
 
 
