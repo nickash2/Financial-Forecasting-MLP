@@ -105,30 +105,30 @@ def objective(trial, train_data_raw, val_data_raw):
     
     return mae
 
-if __name__ == "__main__":
-    # Load the raw data
-    raw_data = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
-    raw_data.dropna(axis=1, inplace=True)
+# if __name__ == "__main__":
+#     # Load the raw data
+#     raw_data = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
+#     raw_data.dropna(axis=1, inplace=True)
     
-    # Split the data into train, validation, and test sets
-    train_data_raw, test_data_raw = train_test_split(raw_data, test_size=0.2, random_state=42)
-    train_data_raw, val_data_raw = train_test_split(train_data_raw, test_size=0.2, random_state=42)
+#     # Split the data into train, validation, and test sets
+#     train_data_raw, test_data_raw = train_test_split(raw_data, test_size=0.2, random_state=42)
+#     train_data_raw, val_data_raw = train_test_split(train_data_raw, test_size=0.2, random_state=42)
 
-    # Create an Optuna study and optimize it to find the best method and degree
-    study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: objective(trial, train_data_raw, val_data_raw), n_trials=100)
+#     # Create an Optuna study and optimize it to find the best method and degree
+#     study = optuna.create_study(direction="minimize")
+#     study.optimize(lambda trial: objective(trial, train_data_raw, val_data_raw), n_trials=100)
 
-    # Get the best hyperparameters and MAE found by Optuna
-    best_method = study.best_params['method']
-    best_degree = study.best_params['degree']
-    best_mae = study.best_value
+#     # Get the best hyperparameters and MAE found by Optuna
+#     best_method = study.best_params['method']
+#     best_degree = study.best_params['degree']
+#     best_mae = study.best_value
 
-    print("Best method:", best_method)
-    print("Best degree:", best_degree)
-    print("Best MAE:", best_mae)
+#     print("Best method:", best_method)
+#     print("Best degree:", best_degree)
+#     print("Best MAE:", best_mae)
 
-    # Optionally, preprocess test data using the best method and degree
-    test_data = preprocess(test_data_raw, method=best_method, degree=best_degree, test=True)
+#     # Optionally, preprocess test data using the best method and degree
+#     test_data = preprocess(test_data_raw, method=best_method, degree=best_degree, test=True)
 
-    # Optionally, plot preprocessed data for the best method on test set
-    plot_preprocessed(test_data, best_method + "_test")
+#     # Optionally, plot preprocessed data for the best method on test set
+#     plot_preprocessed(test_data, best_method + "_test")
