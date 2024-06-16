@@ -188,7 +188,7 @@ def calculate_and_print_metrics(predictions, test_data, best_params, predictor, 
     plt.savefig("plots/true_values_and_adjusted_predictions.png")
     # calculate the smape
     smape_loss = SMAPELoss()
-    smape = smape_loss.forward(true_values, predictions)
+    smape = smape_loss.forward(true_values, predictions)  # using residuals atm
 
     print(f"SMAPE: {smape.item()}%")
 
