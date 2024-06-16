@@ -105,7 +105,7 @@ def run_tuning_mode(train_val_data, device):
             f.write(f"{key}: {value}\n")
 
 
-def run_non_tuning_mode(train_val_data, device, train_model):
+def run_non_tuning_mode(train_val_data, test_data, device, train_model):
     best_params, combined_train_val_loader = non_tuning_mode_operation(
         train_val_data, final_train=train_model
     )
@@ -114,7 +114,7 @@ def run_non_tuning_mode(train_val_data, device, train_model):
     # Load the predictor model for making predictions
     predictor = Predictor(best_params=best_params, device=device)
     test_data.window_size = int(best_params["window_size"])
-
+    print(test_data)
     # Prepare test windows for predictions
     test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
 
@@ -188,7 +188,7 @@ def calculate_and_print_metrics(predictions, test_data, best_params, predictor, 
     plt.savefig("plots/true_values_and_adjusted_predictions.png")
     # calculate the smape
     smape_loss = SMAPELoss()
-    smape = smape_loss.forward(true_values_df, adjusted_predictions)
+    smape = smape_loss.forward(true_values, predictions)
 
     print(f"SMAPE: {smape.item()}%")
 
@@ -200,13 +200,13 @@ if __name__ == "__main__":
     print("Device:", device)
 
     train_val_data, test_data = load_and_preprocess_data()
-
+    print(test_data)
     tuning_mode = False  # runs the tuning mode wwith the optuna study
-    train_model = True  # trains the final model with hyperparams
+    train_model = False  # trains the final model with hyperparams
 
     if tuning_mode:
         run_tuning_mode(train_val_data, device)
     else:
-        predictions, best_params, predictor = run_non_tuning_mode(train_val_data, device, train_model)
+        predictions, best_params, predictor = run_non_tuning_mode(train_val_data, test_data, device, train_model)
         pred, test = calculate_and_print_metrics(predictions, test_data, best_params, predictor, train_val_data)
         # plot_raw_data(train_val_data.data, test_data.data)

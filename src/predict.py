@@ -9,14 +9,6 @@ import pickle
 class Predictor:
     def __init__(self, best_params, device):
         self.device = device
-        
-        # Extract model parameters from state_dict
-        input_size = int(best_params['window_size'])  # Convert to int if necessary
-        hidden_size = int(best_params['hidden_size'])  # Convert to int if necessary
-        output_size = 1  # Assuming output_size is fixed
-        num_layers = int(best_params['hidden_layers'])  # Convert to int if necessary
-        
-        # Initialize an instance of MLP with the extracted parameters
         self.model = torch.load("models/final_model.pth")
         
         # Move model to device (GPU if available)

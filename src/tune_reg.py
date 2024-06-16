@@ -80,37 +80,37 @@ def objective(trial, X_train, y_train, X_test, y_test):
 
     return mae
 
-if __name__ == "__main__":
-    df = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
-    df.dropna(axis=1, inplace=True)
+# if __name__ == "__main__":
+#     df = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
+#     df.dropna(axis=1, inplace=True)
 
-    df_long = pd.melt(
-        df,
-        id_vars=["Series", "N", "NF", "Category", "Starting Year", "Starting Month"],
-        var_name="Month",
-        value_name="Value",
-    )
+#     df_long = pd.melt(
+#         df,
+#         id_vars=["Series", "N", "NF", "Category", "Starting Year", "Starting Month"],
+#         var_name="Month",
+#         value_name="Value",
+#     )
 
-    X = np.arange(len(df_long["Value"])).reshape(-1, 1)
-    y = df_long["Value"].values.reshape(-1, 1)
+#     X = np.arange(len(df_long["Value"])).reshape(-1, 1)
+#     y = df_long["Value"].values.reshape(-1, 1)
 
-    # Split the data into training and validation sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=122, shuffle=True)
+#     # Split the data into training and validation sets
+#     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=122, shuffle=True)
 
-    study = optuna.create_study(direction='minimize')
-    study.optimize(lambda trial: objective(trial, X_train, y_train, X_test, y_test), n_trials=200)
+#     study = optuna.create_study(direction='minimize')
+#     study.optimize(lambda trial: objective(trial, X_train, y_train, X_test, y_test), n_trials=200)
 
-    best_params = study.best_params
-    print(f"Best parameters: {best_params}")
+#     best_params = study.best_params
+#     print(f"Best parameters: {best_params}")
 
-    lasso = Lasso(alpha=best_params['alpha'], max_iter=best_params['max_iter'])
+#     lasso = Lasso(alpha=best_params['alpha'], max_iter=best_params['max_iter'])
 
-    lasso.fit(X, y)
+#     lasso.fit(X, y)
 
-    with open("data/linear_regr.pkl", "wb") as f:
-        pickle.dump(lasso, f)
+#     with open("data/linear_regr.pkl", "wb") as f:
+#         pickle.dump(lasso, f)
 
-    plt.plot(X, y, label='True Data')
-    plt.plot(X, lasso.predict(X), label='Fitted Data')
-    plt.legend()
-    plt.show()
+#     plt.plot(X, y, label='True Data')
+#     plt.plot(X, lasso.predict(X), label='Fitted Data')
+#     plt.legend()
+#     plt.show()

@@ -44,7 +44,7 @@ def preprocess(dataset, test=False):
         df_filtered = df_long[df_long["Series"] == series]
         combined_data = pd.concat([combined_data, df_filtered])
 
-    data = combined_data["Value"]
+    data = df_long["Value"]
     X = np.arange(len(data)).reshape(-1, 1)
     y = data.values.reshape(-1, 1)
 
