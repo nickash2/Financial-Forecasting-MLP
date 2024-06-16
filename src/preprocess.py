@@ -7,30 +7,13 @@ import pickle
 
 
 def plot_preprocessed(df_detrended, name):
-    series_to_plot = df_detrended["Series"].unique()
-    # Calculate the number of rows needed for subplots
-    n = 9
-    ncols = 3
-    nrows = n // ncols + n % ncols
-    pos = range(1, n + 1)
-
-    fig = plt.figure(figsize=(20, 20))
-    fig.subplots_adjust(hspace=0.5, wspace=0.2)
-
-    for k, series in zip(pos, series_to_plot):
-        # Filter df_monthly for the current series
-        series_data = df_detrended[df_detrended["Series"] == series]
-
-        # Create subplot
-        ax = fig.add_subplot(nrows, ncols, k)
-
-        # Plot the series
-        ax.plot(series_data["Month"], series_data["Value"])
-        ax.set_xlabel("Month")
-        ax.set_ylabel("Value")
-        ax.set_title(f"Series: {series}")
-        ax.grid(True)
-
+    plt.figure(figsize=(10, 6))
+    time = np.arange(len(df_detrended))
+    plt.plot(time, df_detrended["Value"])
+    plt.xlabel("Month")
+    plt.ylabel("Value")
+    plt.title(f"Series: {name}")
+    plt.grid(True)
     plt.savefig(f"plots/preprocessed_series_{name}.png")
 
 
@@ -44,51 +27,48 @@ def preprocess(dataset, test=False):
     )
 
     series_to_plot = df_long["Series"].unique()
+    
+    df_detrended = pd.DataFrame()
+    
     if not test:
         scaler = MinMaxScaler(feature_range=(-1, 1))
+        lasso = Lasso(alpha=2.5, max_iter=10000)
     else:
         with open("data/train_scaler.pkl", 'rb') as f:
             scaler = pickle.load(f)
-    
-    df_final = pd.DataFrame()
-    if test:
         with open("data/linear_regr.pkl", "rb") as f:
             lasso = pickle.load(f)
-    else:
-        lasso = Lasso(alpha=2.5, max_iter=6950)
-
+    
+    combined_data = pd.DataFrame()
     for series in series_to_plot:
         df_filtered = df_long[df_long["Series"] == series]
-        data = df_filtered["Value"]
+        combined_data = pd.concat([combined_data, df_filtered])
 
-        X = np.arange(len(data)).reshape(-1, 1)
-        y = data.values.reshape(-1, 1)
-
-        if not test:
-            lasso.fit(X, y)
-
-        fitted_values = lasso.predict(X)
-        detrended_data = data - fitted_values.flatten()
-        df_filtered.loc[:, "Value"] = detrended_data
-
-        if not test:
-            df_filtered.loc[:, "Value"] = scaler.fit_transform(
-                df_filtered["Value"].values.reshape(-1, 1)
-            )
-        else:
-            df_filtered.loc[:, "Value"] = scaler.transform(
-                df_filtered["Value"].values.reshape(-1, 1)
-            )
-
-        df_final = pd.concat([df_final, df_filtered])
+    data = combined_data["Value"]
+    X = np.arange(len(data)).reshape(-1, 1)
+    y = data.values.reshape(-1, 1)
 
     if not test:
+        lasso.fit(X, y)
         with open("data/linear_regr.pkl", "wb") as f:
             pickle.dump(lasso, f)
+
+    fitted_values = lasso.predict(X)
+    detrended_data = data - fitted_values.flatten()
+    combined_data.loc[:, "Value"] = detrended_data
+
+    df_detrended = combined_data
+
+    combined_values = df_detrended["Value"].values.reshape(-1, 1)
+    if not test:
+        df_detrended["Value"] = scaler.fit_transform(combined_values)
         with open("data/train_scaler.pkl", 'wb') as f:
             pickle.dump(scaler, f)
+    else:
+        df_detrended["Value"] = scaler.transform(combined_values)
 
-    return df_final
+    return df_detrended
+
 
 
 

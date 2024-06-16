@@ -71,7 +71,7 @@ class Predictor:
             linreg = pickle.load(f)
             coef = linreg.coef_
             intercept = linreg.intercept_
-            print(coef, intercept)
+            print("coefficients and intercept", coef, intercept)
             # add coefficients and intercepts to the data meow
             data = data * coef + intercept
         return data.flatten()

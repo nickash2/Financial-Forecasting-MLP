@@ -54,7 +54,7 @@ class SMAPELoss(nn.Module):
         denominator = (torch.abs(y_true) + torch.abs(y_pred)) / 2.0
 
         # Avoid division by zero
-        epsilon = 1e-8  # A small value to avoid division by zero
+        epsilon = 1e-15  # A small value to avoid division by zero
         smape = numerator / (denominator + epsilon)
 
         # Return the mean SMAPE multiplied by 100
