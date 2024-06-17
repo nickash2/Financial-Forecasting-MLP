@@ -51,7 +51,7 @@ def create_study_and_pruner():
     return study
 
 
-def tuning_mode_operation(dataset, study, device, n_trials=10):
+def tuning_mode_operation(dataset, study, device, n_trials=200):
     study.optimize(
         lambda trial: objective(trial, dataset, device),
         n_trials=n_trials,
@@ -188,7 +188,7 @@ def calculate_and_print_metrics(predictions, test_data, best_params, predictor, 
     plt.savefig("plots/true_values_and_adjusted_predictions.png")
     # calculate the smape
     smape_loss = SMAPELoss()
-    smape = smape_loss.forward(true_values, predictions)  # using residuals atm
+    smape = smape_loss.forward(true_values_df, adjusted_predictions)  # using residuals atm
 
     print(f"SMAPE: {smape.item()}%")
 
@@ -201,8 +201,8 @@ if __name__ == "__main__":
 
     train_val_data, test_data = load_and_preprocess_data()
     print(test_data)
-    tuning_mode = False  # runs the tuning mode wwith the optuna study
-    train_model = False  # trains the final model with hyperparams
+    tuning_mode = True  # runs the tuning mode wwith the optuna study
+    train_model = True  # trains the final model with hyperparams
 
     if tuning_mode:
         run_tuning_mode(train_val_data, device)
