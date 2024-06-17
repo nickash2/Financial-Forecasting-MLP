@@ -5,12 +5,11 @@ import torch
 from torch.utils.data import DataLoader
 import optuna
 import numpy as np
-from src.preprocess import preprocess, plot_preprocessed
+from src.preprocess import preprocess
 from src.dataset import TimeSeriesDataset
 from src.train import objective, train_final_model
 from src.predict import Predictor
 from src.mlp import SMAPELoss
-from sklearn.metrics import mean_absolute_error
 import pickle
 
 
@@ -39,7 +38,7 @@ def split_data(df):
 
 def preprocess_data_and_create_dataset(dataset, name, test):
     preprocessed_data = preprocess(dataset, test)
-    plot_preprocessed(preprocessed_data, name)
+    # plot_preprocessed(preprocessed_data, name)
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
     return dataset
 
@@ -95,7 +94,7 @@ def load_and_preprocess_data():
 
     test_data = preprocess_data_and_create_dataset(test_data_raw, "test", test=True)
 
-    return train_val_data, test_data
+    return train_val_data, test_data, test_data_raw
 
 
 def run_tuning_mode(train_val_data, device):
@@ -140,80 +139,106 @@ def plot_raw_data(train_data, test_data):
     plt.show()
 
 
-def calculate_and_print_metrics(
-    predictions, test_data, best_params, predictor, train_val_data
-):
+def k_step_prediction_and_evaluate(test_data, k, predictor):
+    initialization_data = test_data.data[:-k]
+    true_last_k_points = test_data.data[-k:]
+
+    initial_window = initialization_data[-predictor.model.input_size:]
+
+    predictions = []
+    for _ in range(k):
+        next_prediction = predictor.predict_next(initial_window)
+        predictions.append(next_prediction)
+        initial_window = np.append(initial_window[1:], next_prediction)
+
     predictions = np.array(predictions)
-    true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
-    print("Predictions", predictions)
 
-    # Calculate Mean Absolute Error (MAE)
-    mae = mean_absolute_error(true_values, predictions)
-    print(f"Mean Absolute Error: {mae}")
-
-    # Adjust predictions based on training data trends and average scaler
     scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
-
-    # Print the scaler min_ and scale_ attributes
-    print("Scaler min:", scaler.min_)
-    print("Scaler scale:", scaler.scale_)
-
-    # Print the shape of predictions and true_values
-    print("Predictions shape:", predictions.shape)
-    print("True values shape:", true_values.shape)
-
-    # Print the first 10 predictions and true_values before undoing normalization
-    print("Raw predictions:", predictions[:400])
-    print("Raw true values:", true_values[:400])
+    last_value = pickle.load(open("data/last_value.pkl", "rb"))
 
     adjusted_predictions = predictor.undo_normalization(predictions, scaler)
-    true_values_df = predictor.undo_normalization(true_values, scaler)
+    true_last_k_points = predictor.undo_normalization(true_last_k_points, scaler)
+    initialization_data = predictor.undo_normalization(initialization_data, scaler)
 
-    retrended_predictions = predictor.retrend_data(adjusted_predictions)
-    retrended_true_values = predictor.retrend_data(true_values_df)
+    # Use the last value before differencing (for training data) as the starting point for reversal
+    adjusted_predictions = predictor.retrend_data(adjusted_predictions, last_value)
+    true_last_k_points = predictor.retrend_data(true_last_k_points, last_value)
+    initialization_data = predictor.retrend_data(initialization_data, last_value)
 
-    adjusted_predictions = retrended_predictions
-    true_values_df = retrended_true_values
+    smape_loss = SMAPELoss()
+    smape = smape_loss.forward(true_last_k_points, adjusted_predictions)
 
-    print("Adjusted Predictions:", adjusted_predictions[:100])
-    print("True Values:", true_values_df[:100])
+    print(f"SMAPE for k-step prediction: {smape.item()}%")
 
-    # Plot adjusted predictions
-    time_index = np.arange(700)
+    return adjusted_predictions, true_last_k_points, smape.item(), initialization_data
+
+
+
+
+def plot_k_step_predictions(series_N1875_values, true_last_k_points, adjusted_predictions):
     plt.figure(figsize=(10, 5))
-    plt.plot(time_index, true_values_df[:700], label="True Values")
-    plt.plot(time_index, adjusted_predictions[:700], label="Prediction", linestyle="--")
+
+    # Plot entire test data without the last 18 points
+    plt.plot(series_N1875_values[:-18], color="black", label="Initialization Data")
+
+    # Plot the true last 18 points
+    time_index = np.arange(len(series_N1875_values) - 18, len(series_N1875_values))
+    plt.plot(time_index, true_last_k_points, color="blue", label="True Values")
+
+    # Plot the predictions
+    plt.plot(
+        time_index,
+        adjusted_predictions,
+        color="orange",
+        label="Prediction",
+        linestyle="--",
+    )
 
     plt.xlabel("Time Index")
     plt.ylabel("Value")
-    plt.title("True Values and Adjusted Predictions")
+    plt.title("True Values and k-Step Predictions")
     plt.legend()
-    plt.savefig("plots/true_values_and_adjusted_predictions.png")
-    # Calculate the smape
-    smape_loss = SMAPELoss()
-    smape = smape_loss.forward(true_values_df, adjusted_predictions)
+    plt.savefig("plots/k_step_predictions.png")
 
-    print(f"SMAPE: {smape.item()}%")
-
-    return adjusted_predictions, true_values_df
 
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
 
-    train_val_data, test_data = load_and_preprocess_data()
-    tuning_mode = False  # runs the tuning mode wwith the optuna study
-    train_model = True  # trains the final model with hyperparams
+    train_val_data, test_data, test_data_raw = load_and_preprocess_data()
+    tuning_mode = False  # runs the tuning mode with the optuna study
+    train_model = False  # trains the final model with hyperparams
 
     if tuning_mode:
         study = run_tuning_mode(train_val_data, device)
         plot_best_study(study)
     else:
+        df_test_raw = pd.melt(
+            test_data_raw,
+            id_vars=[
+                "Series",
+                "N",
+                "NF",
+                "Category",
+                "Starting Year",
+                "Starting Month",
+            ],
+            var_name="Month",
+            value_name="Value",
+        )
+        # series_N1875_values = df_test_raw[df_test_raw["Series"] == "N1875"][
+        #     "Value"
+        # ].values
         predictions, best_params, predictor = run_non_tuning_mode(
             train_val_data, test_data, device, train_model
         )
-        pred, test = calculate_and_print_metrics(
-            predictions, test_data, best_params, predictor, train_val_data
+
+        k = 18  # standard choice in the MP3 competition
+        adjusted_predictions, true_last_k_points, smape, initialization_data = (
+            k_step_prediction_and_evaluate(
+                test_data, k, predictor
+            )
         )
-        # plot_raw_data(train_val_data.data, test_data.data)
+
+        plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions)
