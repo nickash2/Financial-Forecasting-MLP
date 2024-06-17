@@ -13,29 +13,36 @@ from src.mlp import SMAPELoss
 from sklearn.metrics import mean_absolute_error
 import pickle
 
-def plot_best(trial):
+
+def plot_best_study(trial):
     fig = optuna.visualization.plot_optimization_history(trial)
     fig.write_image("plots/optimization_history.png")
+
 
 def load_data():
     df = pd.read_excel("data/M3C.xls", sheet_name="M3Month")
     df.dropna(axis=1, inplace=True)
     return df
 
+
 def split_data(df):
     # Filter for the "MICRO" category
     micro_df = df[df["Category"].str.strip() == "MICRO"]
 
     # Split the micro category data into train and test sets
-    micro_train_val_df, micro_test_df = train_test_split(micro_df, test_size=0.2, shuffle=True, random_state=169)
- 
+    micro_train_val_df, micro_test_df = train_test_split(
+        micro_df, test_size=0.2, shuffle=True, random_state=169
+    )
+
     return micro_train_val_df, micro_test_df
+
 
 def preprocess_data_and_create_dataset(dataset, name, test):
     preprocessed_data = preprocess(dataset, test)
     plot_preprocessed(preprocessed_data, name)
     dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
     return dataset
+
 
 def create_study_and_pruner():
     pruner = optuna.pruners.HyperbandPruner(
@@ -67,19 +74,15 @@ def non_tuning_mode_operation(train_val_data, final_train=False):
             if ":" in line:
                 key, value = line.strip().split(":")
                 best_params[key.strip()] = float(value.strip())
-    print(best_params)
-    
-    
+
     train_val_data.window_size = int(best_params["window_size"])
     combined_train_val_loader = DataLoader(
         train_val_data, batch_size=32, shuffle=False, drop_last=True
     )
     if final_train:
         print("Training the model with the best hyperparameters...")
-        train_final_model(
-            combined_train_val_loader, best_params, device
-        )
-    return best_params, combined_train_val_loader
+        train_final_model(combined_train_val_loader, best_params, device)
+    return best_params
 
 
 def load_and_preprocess_data():
@@ -90,10 +93,8 @@ def load_and_preprocess_data():
         train_val_data_raw, "train", test=False
     )
 
-    test_data = preprocess_data_and_create_dataset(
-        test_data_raw, "test", test=True
-    )
-    
+    test_data = preprocess_data_and_create_dataset(test_data_raw, "test", test=True)
+
     return train_val_data, test_data
 
 
@@ -103,12 +104,11 @@ def run_tuning_mode(train_val_data, device):
     with open("habrok_output/12-06/Best_hyperparameters.txt", "w") as f:
         for key, value in study.best_params.items():
             f.write(f"{key}: {value}\n")
+    return study
 
 
 def run_non_tuning_mode(train_val_data, test_data, device, train_model):
-    best_params, combined_train_val_loader = non_tuning_mode_operation(
-        train_val_data, final_train=train_model
-    )
+    best_params = non_tuning_mode_operation(train_val_data, final_train=train_model)
     print(best_params)
 
     # Load the predictor model for making predictions
@@ -124,22 +124,25 @@ def run_non_tuning_mode(train_val_data, test_data, device, train_model):
         window = test_windows[i].numpy()
         next_prediction = predictor.predict_next(window)
         predictions.append(next_prediction)
+        # print(f"{window} => {next_prediction}")
 
     return predictions, best_params, predictor
 
 
 def plot_raw_data(train_data, test_data):
     plt.figure(figsize=(12, 6))
-    plt.plot(train_data, label='Raw Training Data', color='blue')
-    plt.plot(test_data, label='Raw Test Data', color='orange')
-    plt.xlabel('Time Index')
-    plt.ylabel('Value')
-    plt.title('Raw Training and Test Data Comparison')
+    plt.plot(train_data, label="Raw Training Data", color="blue")
+    plt.plot(test_data, label="Raw Test Data", color="orange")
+    plt.xlabel("Time Index")
+    plt.ylabel("Value")
+    plt.title("Raw Training and Test Data Comparison")
     plt.legend()
     plt.show()
 
 
-def calculate_and_print_metrics(predictions, test_data, best_params, predictor, train_val_data):
+def calculate_and_print_metrics(
+    predictions, test_data, best_params, predictor, train_val_data
+):
     predictions = np.array(predictions)
     true_values = torch.tensor([test_data[i][1] for i in range(len(test_data))]).numpy()
     print("Predictions", predictions)
@@ -168,7 +171,7 @@ def calculate_and_print_metrics(predictions, test_data, best_params, predictor, 
 
     retrended_predictions = predictor.retrend_data(adjusted_predictions)
     retrended_true_values = predictor.retrend_data(true_values_df)
-    
+
     adjusted_predictions = retrended_predictions
     true_values_df = retrended_true_values
 
@@ -176,19 +179,19 @@ def calculate_and_print_metrics(predictions, test_data, best_params, predictor, 
     print("True Values:", true_values_df[:100])
 
     # Plot adjusted predictions
-    time_index = np.arange(400)
+    time_index = np.arange(700)
     plt.figure(figsize=(10, 5))
-    plt.plot(time_index, true_values_df[:400], label="True Values")
-    plt.plot(time_index, adjusted_predictions[:400], label="Prediction", linestyle="--")
+    plt.plot(time_index, true_values_df[:700], label="True Values")
+    plt.plot(time_index, adjusted_predictions[:700], label="Prediction", linestyle="--")
 
     plt.xlabel("Time Index")
     plt.ylabel("Value")
     plt.title("True Values and Adjusted Predictions")
     plt.legend()
     plt.savefig("plots/true_values_and_adjusted_predictions.png")
-    # calculate the smape
+    # Calculate the smape
     smape_loss = SMAPELoss()
-    smape = smape_loss.forward(true_values_df, adjusted_predictions)  # using residuals atm
+    smape = smape_loss.forward(true_values_df, adjusted_predictions)
 
     print(f"SMAPE: {smape.item()}%")
 
@@ -200,13 +203,17 @@ if __name__ == "__main__":
     print("Device:", device)
 
     train_val_data, test_data = load_and_preprocess_data()
-    print(test_data)
     tuning_mode = False  # runs the tuning mode wwith the optuna study
     train_model = True  # trains the final model with hyperparams
 
     if tuning_mode:
-        run_tuning_mode(train_val_data, device)
+        study = run_tuning_mode(train_val_data, device)
+        plot_best_study(study)
     else:
-        predictions, best_params, predictor = run_non_tuning_mode(train_val_data, test_data, device, train_model)
-        pred, test = calculate_and_print_metrics(predictions, test_data, best_params, predictor, train_val_data)
+        predictions, best_params, predictor = run_non_tuning_mode(
+            train_val_data, test_data, device, train_model
+        )
+        pred, test = calculate_and_print_metrics(
+            predictions, test_data, best_params, predictor, train_val_data
+        )
         # plot_raw_data(train_val_data.data, test_data.data)

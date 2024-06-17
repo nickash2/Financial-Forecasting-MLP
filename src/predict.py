@@ -10,14 +10,14 @@ class Predictor:
     def __init__(self, best_params, device):
         self.device = device
         self.model = torch.load("models/final_model.pth")
-        
+
         # Move model to device (GPU if available)
         if torch.cuda.is_available():
             self.model.to(device)
-        
+
         # Set model to evaluation mode
         self.model.eval()
-    
+
     @staticmethod
     def accuracy(true_data, predictions):
         numerator = np.abs(true_data - predictions)
@@ -43,21 +43,21 @@ class Predictor:
             # Predict the next point
             prediction = self.model(last_window)
         return prediction.squeeze().cpu().numpy()
-    
+
     def undo_normalization(self, data, scaler):
         # Reshape data to 2D array if it's currently 1D
         if data.ndim == 1:
             data = data.reshape(-1, 1)
-            
+
         # Perform inverse transformation
         inversed_data = scaler.inverse_transform(data)
-        
+
         # If the original data was 1D, flatten the inversed data
         if data.shape[1] == 1:
             inversed_data = inversed_data.flatten()
-            
+
         return inversed_data
-    
+
     def retrend_data(self, data):
         with open("data/linear_regr.pkl", "rb") as f:
             linreg = pickle.load(f)

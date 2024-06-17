@@ -42,7 +42,7 @@ def train_epoch(
     trial,
     epoch,
     num_epochs,
-    early_stopping_patience=10
+    early_stopping_patience=10,
 ):
     model = model.to(device)
     model.train()
@@ -54,8 +54,8 @@ def train_epoch(
 
     for inputs, targets in progress_bar:
         inputs = inputs.to(device)
-         # Reshape the targets tensor to match the output tensor
-        targets = targets.to(device).view(-1) 
+        # Reshape the targets tensor to match the output tensor
+        targets = targets.to(device).view(-1)
         optimizer.zero_grad()
         outputs = model(inputs)
         outputs = outputs.view(-1)
@@ -89,20 +89,19 @@ def train_final_model(train_loader, best_params, device):
     num_layers = int(best_params["hidden_layers"])
     num_epochs = int(best_params["num_epochs"])
 
-    
     # print(f"Training final model with window_size={window_size}, hidden_size={hidden_size}, num_layers={num_layers}, num_epochs={num_epochs}")
-    
+
     model = MLP(
         input_size=window_size,  # Use the window_size as the input_size
         hidden_size=hidden_size,
         output_size=OUTPUT_SIZE,
-        num_layers=num_layers
+        num_layers=num_layers,
     ).to(device)
-    
+
     optimizer = torch.optim.Adam(
         model.parameters(), lr=best_params["lr"], weight_decay=best_params["lambda_reg"]
     )
-    
+
     criterion = torch.nn.L1Loss()
     model = model.to(device)
     criterion = criterion.to(device)
@@ -119,7 +118,9 @@ def train_final_model(train_loader, best_params, device):
         for inputs, targets in progress_bar:
             # print(f"Input shape: {inputs.shape}")  # Debug statement
             inputs = inputs.to(device)
-            targets = targets.to(device).view(-1)  # Reshape the targets tensor to match the output tensor
+            targets = targets.to(device).view(
+                -1
+            )  # Reshape the targets tensor to match the output tensor
             optimizer.zero_grad()
             outputs = model(inputs)
             outputs = outputs.view(-1)
@@ -131,17 +132,13 @@ def train_final_model(train_loader, best_params, device):
 
         avg_loss = total_loss / len(train_loader)
 
-        progress_bar.set_postfix(
-            {"training_loss": "{:.3f}".format(avg_loss)}
-        )
+        progress_bar.set_postfix({"training_loss": "{:.3f}".format(avg_loss)})
 
         train_losses.append(avg_loss)
 
-        print(
-            f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}"
-        )
+        print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss}")
 
-    torch.save(model, "models/final_model.pth")   # change this to save model.
+    torch.save(model, "models/final_model.pth")  # change this to save model.
 
     # Plot training losses
     plt.figure()
@@ -153,18 +150,13 @@ def train_final_model(train_loader, best_params, device):
     plt.savefig("plots/final_training_loss.png")
 
 
-
-
-
 def objective(trial, dataset, device, n_splits=5, early_stopping_patience=10):
     blocked_split = BlockedTimeSeriesSplit(n_splits=n_splits)
     val_losses = []
 
     # Define hyperparameters using trial.suggest_*
     learning_rate = trial.suggest_float("lr", 1e-3, 1e-1, log=True)
-    hidden_size = trial.suggest_categorical(
-        "hidden_size", [2**i for i in range(4, 7)]
-    )
+    hidden_size = trial.suggest_categorical("hidden_size", [2**i for i in range(4, 7)])
     lambda_reg = trial.suggest_float(
         "lambda_reg", 1e-4, 1e-2, log=True
     )  # Increased upper limit
@@ -190,7 +182,7 @@ def objective(trial, dataset, device, n_splits=5, early_stopping_patience=10):
             output_size=OUTPUT_SIZE,
             num_layers=hidden_layers,
         ).to(device)
-        
+
         optimizer = torch.optim.Adam(
             model.parameters(), lr=learning_rate, weight_decay=lambda_reg
         )
@@ -201,7 +193,7 @@ def objective(trial, dataset, device, n_splits=5, early_stopping_patience=10):
         # Train the model
         train_losses = []
         val_losses_fold = []
-        best_val_loss = float('inf')
+        best_val_loss = float("inf")
         early_stopping_counter = 0
 
         for epoch in range(num_epochs):
@@ -217,7 +209,9 @@ def objective(trial, dataset, device, n_splits=5, early_stopping_patience=10):
                 early_stopping_counter += 1
 
             if early_stopping_counter >= early_stopping_patience:
-                print(f"\n- - - - -Early stopping triggered at epoch {epoch+1} - - - - -\n")
+                print(
+                    f"\n- - - - -Early stopping triggered at epoch {epoch+1} - - - - -\n"
+                )
                 break
 
         # Evaluate the model on the validation set
