@@ -4,6 +4,7 @@ from .mlp import SMAPELoss, MLP
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import pickle
+import pandas as pd
 
 
 class Predictor:
@@ -58,6 +59,13 @@ class Predictor:
 
         return inversed_data
 
-    def retrend_data(self, differenced_data, original_data):
-        retrended_data = differenced_data + original_data.shift(1)
-        return retrended_data.dropna().flatten()
+    def retrend_data(self, differenced_data, last_value):
+        retrended_data = np.empty_like(differenced_data)
+        retrended_data[0] = last_value + differenced_data[0]
+        
+        for i in range(1, len(differenced_data)):
+            retrended_data[i] = retrended_data[i - 1] + differenced_data[i]
+        
+        return retrended_data
+
+
