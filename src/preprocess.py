@@ -44,8 +44,8 @@ def preprocess(dataset, test=False):
         lasso = Lasso(alpha=2.5, max_iter=100000)
         lasso.fit(X, y)
 
-        fitted_values = lasso.predict(X)
-        detrended_data = data - fitted_values.flatten()
+        detrended_data = data.diff().dropna()
+
         combined_data.loc[:, "Value"] = detrended_data
 
         combined_values = combined_data["Value"].values.reshape(-1, 1)  # type: ignore
@@ -74,11 +74,10 @@ def preprocess(dataset, test=False):
 
         print("Scaler and lasso model loaded successfully.")
 
-        fitted_values = lasso.predict(X)
-        detrended_data = data - fitted_values.flatten()
+        detrended_data = data.diff().dropna()
         combined_data.loc[:, "Value"] = detrended_data
 
         combined_values = combined_data["Value"].values.reshape(-1, 1)  # type: ignore
         combined_data["Value"] = scaler.transform(combined_values)
-
+    plot_preprocessed(combined_data, "detrended")
     return combined_data
