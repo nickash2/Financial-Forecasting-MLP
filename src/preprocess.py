@@ -28,47 +28,54 @@ def preprocess(dataset, test=False):
 
     series_to_plot = df_long["Series"].unique()
     
-    df_detrended = pd.DataFrame()
-    
-    if not test:
-        scaler = MinMaxScaler(feature_range=(-1, 1))
-        lasso = Lasso(alpha=2.5, max_iter=10000)
-    else:
-        with open("data/train_scaler.pkl", 'rb') as f:
-            scaler = pickle.load(f)
-        with open("data/linear_regr.pkl", "rb") as f:
-            lasso = pickle.load(f)
-    
     combined_data = pd.DataFrame()
     for series in series_to_plot:
         df_filtered = df_long[df_long["Series"] == series]
         combined_data = pd.concat([combined_data, df_filtered])
 
-    data = df_long["Value"]
+    data = combined_data["Value"]
     X = np.arange(len(data)).reshape(-1, 1)
     y = data.values.reshape(-1, 1)
 
     if not test:
+        # Training phase
+        print("Fitting scaler and lasso model during training phase.")
+        scaler = MinMaxScaler(feature_range=(-1, 1))
+        lasso = Lasso(alpha=2.5, max_iter=10000)
         lasso.fit(X, y)
+
+        fitted_values = lasso.predict(X)
+        detrended_data = data - fitted_values.flatten()
+        combined_data.loc[:, "Value"] = detrended_data
+
+        combined_values = combined_data["Value"].values.reshape(-1, 1)
+        combined_data["Value"] = scaler.fit_transform(combined_values)
+        # Save the fitted model and scaler
         with open("data/linear_regr.pkl", "wb") as f:
             pickle.dump(lasso, f)
-
-    fitted_values = lasso.predict(X)
-    detrended_data = data - fitted_values.flatten()
-    combined_data.loc[:, "Value"] = detrended_data
-
-    df_detrended = combined_data
-
-    combined_values = df_detrended["Value"].values.reshape(-1, 1)
-    if not test:
-        df_detrended["Value"] = scaler.fit_transform(combined_values)
         with open("data/train_scaler.pkl", 'wb') as f:
             pickle.dump(scaler, f)
+        print("Scaler and lasso model saved.")
+
     else:
-        df_detrended["Value"] = scaler.transform(combined_values)
+        # Testing phase
+        print("Loading fitted scaler and lasso model during testing phase.")
+        try:
+            with open("data/train_scaler.pkl", 'rb') as f:
+                scaler = pickle.load(f)
+            with open("data/linear_regr.pkl", "rb") as f:
+                lasso = pickle.load(f)
+        except FileNotFoundError:
+            print("Scaler or model file not found. Ensure the model is trained before testing.")
+            raise
 
-    return df_detrended
+        print("Scaler and lasso model loaded successfully.")
+        
+        fitted_values = lasso.predict(X)
+        detrended_data = data - fitted_values.flatten()
+        combined_data.loc[:, "Value"] = detrended_data
 
+        combined_values = combined_data["Value"].values.reshape(-1, 1)
+        combined_data["Value"] = scaler.transform(combined_values)
 
-
-
+    return combined_data
