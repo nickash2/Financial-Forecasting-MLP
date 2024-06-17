@@ -58,12 +58,6 @@ class Predictor:
 
         return inversed_data
 
-    def retrend_data(self, data):
-        with open("data/linear_regr.pkl", "rb") as f:
-            linreg = pickle.load(f)
-            coef = linreg.coef_
-            intercept = linreg.intercept_
-            print("coefficients and intercept", coef, intercept)
-            # add coefficients and intercepts to the data meow
-            data = data * coef + intercept
-        return data.flatten()
+    def retrend_data(self, differenced_data, original_data):
+        retrended_data = differenced_data + original_data.shift(1)
+        return retrended_data.dropna().flatten()

@@ -31,7 +31,7 @@ def split_data(df):
 
     # Split the micro category data into train and test sets
     micro_train_val_df, micro_test_df = train_test_split(
-        micro_df, test_size=0.2, shuffle=True, random_state=169
+        micro_df, test_size=0.2, shuffle=False, random_state=169
     )
 
     return micro_train_val_df, micro_test_df
