@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
     train_val_data, test_data = load_and_preprocess_data()
     print(test_data)
-    tuning_mode = True  # runs the tuning mode wwith the optuna study
+    tuning_mode = False  # runs the tuning mode wwith the optuna study
     train_model = True  # trains the final model with hyperparams
 
     if tuning_mode:
