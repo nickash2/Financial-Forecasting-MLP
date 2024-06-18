@@ -55,6 +55,7 @@ cover/
 *.mo
 *.pot
 
+train_job.sh
 # Flask stuff:
 instance/
 .webassets-cache
