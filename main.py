@@ -115,18 +115,6 @@ def run_non_tuning_mode(train_val_data, test_data, device, train_model):
 
     # Load the predictor model for making predictions
     predictor = Predictor(best_params=best_params, device=device)
-    # test_data.window_size = int(best_params["window_size"])
-    # print(test_data)
-    # # Prepare test windows for predictions
-    # test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
-
-    # # Predict using the loaded model
-    # predictions = []
-    # for i in range(len(test_windows)):
-    #     window = test_windows[i].numpy()
-    #     next_prediction = predictor.predict_next(window)
-    #     predictions.append(next_prediction)
-    #     # print(f"{window} => {next_prediction}")
 
     return best_params, predictor
 
@@ -159,7 +147,7 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
     last_value = pickle.load(open("data/last_value.pkl", "rb"))
 
-    l1_loss = np.abs(predictions - true_last_k_points).mean()
+    # l1_loss = np.abs(predictions - true_last_k_points).mean()
     # print(f"L1 Loss for k-step prediction: {l1_loss}")
 
     # Undo normalization
@@ -233,7 +221,7 @@ if __name__ == "__main__":
         k = 18  # standard choice in the MP3 competition
         # Get all unique series
         print(test_data)
-        all_series = test_data["Series"].unique()
+        all_series = test_data["Series"].unique() # type: ignore
 
         # Initialize a list to store all SMAPE values
         all_smape = []
@@ -246,7 +234,7 @@ if __name__ == "__main__":
             # Run the k_step_prediction_and_evaluate function
             adjusted_predictions, true_last_k_points, smape, initialization_data = (
                 k_step_prediction_and_evaluate(
-                    test_data_filtered["Value"], k, predictor
+                    test_data_filtered["Value"], k, predictor # type: ignore
                 )
             )
             plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions, series=series)
