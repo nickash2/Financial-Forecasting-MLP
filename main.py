@@ -39,8 +39,11 @@ def split_data(df):
 def preprocess_data_and_create_dataset(dataset, name, test):
     preprocessed_data = preprocess(dataset, test)
     # plot_preprocessed(preprocessed_data, name)
-    dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
-    return dataset
+    if not test:
+        dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
+        return dataset
+    else:
+        return preprocessed_data
 
 
 def create_study_and_pruner():
@@ -112,20 +115,20 @@ def run_non_tuning_mode(train_val_data, test_data, device, train_model):
 
     # Load the predictor model for making predictions
     predictor = Predictor(best_params=best_params, device=device)
-    test_data.window_size = int(best_params["window_size"])
-    print(test_data)
-    # Prepare test windows for predictions
-    test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
+    # test_data.window_size = int(best_params["window_size"])
+    # print(test_data)
+    # # Prepare test windows for predictions
+    # test_windows = torch.stack([test_data[i][0] for i in range(len(test_data))])
 
-    # Predict using the loaded model
-    predictions = []
-    for i in range(len(test_windows)):
-        window = test_windows[i].numpy()
-        next_prediction = predictor.predict_next(window)
-        predictions.append(next_prediction)
-        # print(f"{window} => {next_prediction}")
+    # # Predict using the loaded model
+    # predictions = []
+    # for i in range(len(test_windows)):
+    #     window = test_windows[i].numpy()
+    #     next_prediction = predictor.predict_next(window)
+    #     predictions.append(next_prediction)
+    #     # print(f"{window} => {next_prediction}")
 
-    return predictions, best_params, predictor
+    return best_params, predictor
 
 
 def plot_raw_data(train_data, test_data):
@@ -140,8 +143,8 @@ def plot_raw_data(train_data, test_data):
 
 
 def k_step_prediction_and_evaluate(test_data, k, predictor):
-    initialization_data = test_data.data[:-k]
-    true_last_k_points = test_data.data[-k:]
+    initialization_data = test_data.dropna().values[:-k]
+    true_last_k_points = test_data.dropna().values[-k:]
 
     initial_window = initialization_data[-predictor.model.input_size:]
 
@@ -157,7 +160,7 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     last_value = pickle.load(open("data/last_value.pkl", "rb"))
 
     l1_loss = np.abs(predictions - true_last_k_points).mean()
-    print(f"L1 Loss for k-step prediction: {l1_loss}")
+    # print(f"L1 Loss for k-step prediction: {l1_loss}")
 
     # Undo normalization
     initialization_data_unnorm = predictor.undo_normalization(initialization_data, scaler)
@@ -173,12 +176,12 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
 
     # Retrend the predictions
     adjusted_predictions = np.cumsum(predictions_unnorm) + last_known_value
-    print("Adjusted Predictions (after retrending):", adjusted_predictions)
+    # print("Adjusted Predictions (after retrending):", adjusted_predictions)
 
     # Retrend the true last k points
     last_value_for_true_points = initialization_data_retrended[-1]
     true_last_k_points_retrended = np.cumsum(true_last_k_points_unnorm) + last_value_for_true_points
-    print("True Last K Points (after retrending):", true_last_k_points_retrended)
+    # print("True Last K Points (after retrending):", true_last_k_points_retrended)
 
     # Calculate SMAPE
     smape_loss = SMAPELoss()
@@ -189,7 +192,7 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     return adjusted_predictions, true_last_k_points_retrended, smape.item(), initialization_data_retrended
 
 
-def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adjusted_predictions):
+def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adjusted_predictions, series):
     plt.figure(figsize=(10, 5))
 
     # Plot entire test data without the last 18 points
@@ -207,7 +210,7 @@ def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adju
     plt.title("True Values and k-Step Predictions")
     plt.legend()
     plt.grid(True)
-    plt.savefig("plots/k_step_predictions.png")
+    plt.savefig(f"plots/predictions/k_step_predictions_{series}.png")
 
 
 if __name__ == "__main__":
@@ -216,37 +219,43 @@ if __name__ == "__main__":
 
     train_val_data, test_data, test_data_raw = load_and_preprocess_data()
     tuning_mode = False  # runs the tuning mode with the optuna study
-    train_model = True  # trains the final model with hyperparams
+    train_model = False  # trains the final model with hyperparams
 
     if tuning_mode:
         study = run_tuning_mode(train_val_data, device)
         plot_best_study(study)
     else:
-        df_test_raw = pd.melt(
-            test_data_raw,
-            id_vars=[
-                "Series",
-                "N",
-                "NF",
-                "Category",
-                "Starting Year",
-                "Starting Month",
-            ],
-            var_name="Month",
-            value_name="Value",
-        )
-        # series_N1875_values = df_test_raw[df_test_raw["Series"] == "N1875"][
-        #     "Value"
-        # ].values
-        predictions, best_params, predictor = run_non_tuning_mode(
+        
+        best_params, predictor = run_non_tuning_mode(
             train_val_data, test_data, device, train_model
         )
 
         k = 18  # standard choice in the MP3 competition
-        adjusted_predictions, true_last_k_points, smape, initialization_data = (
-            k_step_prediction_and_evaluate(
-                test_data, k, predictor
-            )
-        )
+        # Get all unique series
+        print(test_data)
+        all_series = test_data["Series"].unique()
 
-        plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions)
+        # Initialize a list to store all SMAPE values
+        all_smape = []
+
+        # Loop through all series
+        for series in all_series:
+            # Filter the data for the current series
+            test_data_filtered = test_data[test_data["Series"] == series]
+
+            # Run the k_step_prediction_and_evaluate function
+            adjusted_predictions, true_last_k_points, smape, initialization_data = (
+                k_step_prediction_and_evaluate(
+                    test_data_filtered["Value"], k, predictor
+                )
+            )
+            plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions, series=series)
+
+            # Append the SMAPE value to the list
+            all_smape.append(smape)
+
+        # Calculate the average SMAPE
+        average_smape = sum(all_smape) / len(all_smape)
+        print("Avg SMAPE:", average_smape)
+
+        # plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions)
