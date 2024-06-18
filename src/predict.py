@@ -3,31 +3,21 @@ import torch
 from .mlp import SMAPELoss, MLP
 import numpy as np
 from sklearn.linear_model import LinearRegression
+import pickle
+import pandas as pd
+
 
 class Predictor:
-    def __init__(self, model_path, device):
-        self.model = MLP()  # Initialize the model first
-        if torch.cuda.is_available():
-            self.model.load_state_dict(torch.load(model_path))
-            self.model.to(device)
-        else:
-            self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    def __init__(self, best_params, device):
         self.device = device
+        self.model = torch.load("models/final_model.pth")
 
-    def retrend_data(detrended_data, original_data):
-        # Fit the linear model to the original data
-        X = np.arange(len(original_data)).reshape(-1, 1)
-        y = original_data.values.reshape(-1, 1)
-        linreg = LinearRegression()
-        linreg.fit(X, y)
+        # Move model to device (GPU if available)
+        if torch.cuda.is_available():
+            self.model.to(device)
 
-        # Calculate the fitted values (trend)
-        fitted_values = linreg.predict(X)
-
-        # Add the trend to the detrended data
-        retrended_data = detrended_data + fitted_values.flatten()
-
-        return retrended_data
+        # Set model to evaluation mode
+        self.model.eval()
 
     @staticmethod
     def accuracy(true_data, predictions):
@@ -46,7 +36,36 @@ class Predictor:
         self.model.eval()
         with torch.no_grad():
             # Convert the last window to a tensor, add a batch dimension, and move it to the device
-            last_window = torch.tensor(last_window, dtype=torch.float32).unsqueeze(0).to(self.device)
+            last_window = (
+                torch.tensor(last_window, dtype=torch.float32)
+                .unsqueeze(0)
+                .to(self.device)
+            )
             # Predict the next point
             prediction = self.model(last_window)
         return prediction.squeeze().cpu().numpy()
+
+    def undo_normalization(self, data, scaler):
+        # Reshape data to 2D array if it's currently 1D
+        if data.ndim == 1:
+            data = data.reshape(-1, 1)
+
+        # Perform inverse transformation
+        inversed_data = scaler.inverse_transform(data)
+
+        # If the original data was 1D, flatten the inversed data
+        if data.shape[1] == 1:
+            inversed_data = inversed_data.flatten()
+
+        return inversed_data
+
+    def retrend_data(self, differenced_data, last_value):
+        retrended_data = np.empty_like(differenced_data)
+        retrended_data[0] = last_value + differenced_data[0]
+        
+        for i in range(1, len(differenced_data)):
+            retrended_data[i] = retrended_data[i - 1] + differenced_data[i]
+        
+        return retrended_data
+
+

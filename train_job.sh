@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --time=4:00:00
-#SBATCH --nodes=2
-#SBATCH --mem=16GB
+#SBATCH --time=6:00:00
+#SBATCH --nodes=1
+#SBATCH --mem=8GB
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
@@ -10,5 +10,4 @@
 module load PyTorch
 pip install -r requirements.txt
 python3 main.py
-
 
