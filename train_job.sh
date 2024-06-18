@@ -3,10 +3,8 @@
 #SBATCH --nodes=2
 #SBATCH --mem=16GB
 #SBATCH --ntasks-per-node=1
-#SBATCH --output=job-newblockedcv-%j.log
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
-#SBATCH --mail-user=n.assiotis@student.rug.nl
 #SBATCH --mail-type=END
 
 module load PyTorch
