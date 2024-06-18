@@ -1,0 +1,6 @@
+lr: 0.01874254265604424
+hidden_size: 64
+lambda_reg: 0.0019783902578916967
+hidden_layers: 1
+num_epochs: 35
+window_size: 2
