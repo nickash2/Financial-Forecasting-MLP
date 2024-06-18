@@ -1,0 +1,8 @@
+# Report Details
+[Report Link](https://www.overleaf.com/2535542516dqzxdcjmjcdm#579847)
+
+- [Instructions (from page 6, grading scheme on page 10)](https://www.ai.rug.nl/minds/uploads/SemesterProjectInstruction_NN.pdf)
+
+
+
+
