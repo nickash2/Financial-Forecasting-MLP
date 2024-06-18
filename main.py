@@ -30,7 +30,7 @@ def split_data(df):
 
     # Split the micro category data into train and test sets
     micro_train_val_df, micro_test_df = train_test_split(
-        micro_df, test_size=0.2, shuffle=False, random_state=169
+        micro_df, test_size=0.2, shuffle=True, random_state=169
     )
 
     return micro_train_val_df, micro_test_df
@@ -156,50 +156,58 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
     last_value = pickle.load(open("data/last_value.pkl", "rb"))
 
-    adjusted_predictions = predictor.undo_normalization(predictions, scaler)
-    true_last_k_points = predictor.undo_normalization(true_last_k_points, scaler)
-    initialization_data = predictor.undo_normalization(initialization_data, scaler)
+    l1_loss = np.abs(predictions - true_last_k_points).mean()
+    print(f"L1 Loss for k-step prediction: {l1_loss}")
 
-    # Use the last value before differencing (for training data) as the starting point for reversal
-    adjusted_predictions = predictor.retrend_data(adjusted_predictions, last_value)
-    true_last_k_points = predictor.retrend_data(true_last_k_points, last_value)
-    initialization_data = predictor.retrend_data(initialization_data, last_value)
+    # Undo normalization
+    initialization_data_unnorm = predictor.undo_normalization(initialization_data, scaler)
+    predictions_unnorm = predictor.undo_normalization(predictions, scaler)
+    true_last_k_points_unnorm = predictor.undo_normalization(true_last_k_points, scaler)
 
+
+    # Retrend the initialization data
+    initialization_data_retrended = np.cumsum(initialization_data_unnorm) + last_value
+
+    # Use the last value from the initialization data retrended
+    last_known_value = initialization_data_retrended[-1]
+
+    # Retrend the predictions
+    adjusted_predictions = np.cumsum(predictions_unnorm) + last_known_value
+    print("Adjusted Predictions (after retrending):", adjusted_predictions)
+
+    # Retrend the true last k points
+    last_value_for_true_points = initialization_data_retrended[-1]
+    true_last_k_points_retrended = np.cumsum(true_last_k_points_unnorm) + last_value_for_true_points
+    print("True Last K Points (after retrending):", true_last_k_points_retrended)
+
+    # Calculate SMAPE
     smape_loss = SMAPELoss()
-    smape = smape_loss.forward(true_last_k_points, adjusted_predictions)
+    smape = smape_loss.forward(true_last_k_points_retrended, adjusted_predictions)
 
     print(f"SMAPE for k-step prediction: {smape.item()}%")
 
-    return adjusted_predictions, true_last_k_points, smape.item(), initialization_data
+    return adjusted_predictions, true_last_k_points_retrended, smape.item(), initialization_data_retrended
 
 
-
-
-def plot_k_step_predictions(series_N1875_values, true_last_k_points, adjusted_predictions):
+def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adjusted_predictions):
     plt.figure(figsize=(10, 5))
 
     # Plot entire test data without the last 18 points
-    plt.plot(series_N1875_values[:-18], color="black", label="Initialization Data")
+    plt.plot(np.arange(len(init_data_retrended)), init_data_retrended, color="black", label="Initialization Data")
 
     # Plot the true last 18 points
-    time_index = np.arange(len(series_N1875_values) - 18, len(series_N1875_values))
-    plt.plot(time_index, true_last_k_points, color="blue", label="True Values")
+    time_index_true = np.arange(len(init_data_retrended), len(init_data_retrended) + len(true_last_k_points_unnorm))
+    plt.plot(time_index_true, true_last_k_points_unnorm, color="blue", label="True Values")
 
-    # Plot the predictions
-    plt.plot(
-        time_index,
-        adjusted_predictions,
-        color="orange",
-        label="Prediction",
-        linestyle="--",
-    )
+    time_index_pred = np.arange(len(init_data_retrended), len(init_data_retrended) + len(adjusted_predictions))
+    plt.plot(time_index_pred, adjusted_predictions, color="orange", label="Prediction", linestyle="--")
 
     plt.xlabel("Time Index")
     plt.ylabel("Value")
     plt.title("True Values and k-Step Predictions")
     plt.legend()
+    plt.grid(True)
     plt.savefig("plots/k_step_predictions.png")
-
 
 
 if __name__ == "__main__":
@@ -208,7 +216,7 @@ if __name__ == "__main__":
 
     train_val_data, test_data, test_data_raw = load_and_preprocess_data()
     tuning_mode = False  # runs the tuning mode with the optuna study
-    train_model = False  # trains the final model with hyperparams
+    train_model = True  # trains the final model with hyperparams
 
     if tuning_mode:
         study = run_tuning_mode(train_val_data, device)

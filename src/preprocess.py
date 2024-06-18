@@ -30,6 +30,7 @@ def preprocess(dataset, test=False):
     if not test:
         # Training phase
         data = combined_data["Value"]
+        plot_preprocessed(data, "orig_train")
 
         # Perform differencing
         differenced_data = data.diff().dropna()
@@ -67,6 +68,7 @@ def preprocess(dataset, test=False):
 
         last_series = df_long["Series"].unique()[-1]
         df_filtered = df_long[df_long["Series"] == last_series]
+        plot_preprocessed(df_filtered["Value"], "orig_test")
 
         data = df_filtered["Value"]
 
