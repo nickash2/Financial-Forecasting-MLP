@@ -111,7 +111,7 @@ def preprocess(dataset, test=False):
             df_filtered.loc[:, "Value"] = detrended_data
 
             # Scale the 'Value' column of the data
-            df_filtered.loc[:, "Value"] = scaler.fit_transform(
+            df_filtered.loc[:, "Value"] = scaler.transform(
                 df_filtered["Value"].values.reshape(-1, 1)
             )
             combined_data = pd.concat([combined_data, df_filtered])

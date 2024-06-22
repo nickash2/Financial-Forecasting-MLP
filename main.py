@@ -30,7 +30,7 @@ def split_data(df):
 
     # Split the micro category data into train and test sets
     micro_train_val_df, micro_test_df = train_test_split(
-        micro_df, test_size=0.2, shuffle=True, random_state=169
+        micro_df, test_size=0.2, shuffle=True, random_state=222
     )
 
     return micro_train_val_df, micro_test_df
@@ -38,7 +38,6 @@ def split_data(df):
 
 def preprocess_data_and_create_dataset(dataset, name, test):
     preprocessed_data = preprocess(dataset, test)
-    # plot_preprocessed(preprocessed_data, name)
     if not test:
         dataset = TimeSeriesDataset(preprocessed_data, window_size=5)
         return dataset
@@ -147,8 +146,6 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
     last_value = pickle.load(open("data/last_value.pkl", "rb"))
 
-    # l1_loss = np.abs(predictions - true_last_k_points).mean()
-    # print(f"L1 Loss for k-step prediction: {l1_loss}")
 
     # Undo normalization
     initialization_data_unnorm = predictor.undo_normalization(initialization_data, scaler)
@@ -164,12 +161,10 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
 
     # Retrend the predictions
     adjusted_predictions = np.cumsum(predictions_unnorm) + last_known_value
-    # print("Adjusted Predictions (after retrending):", adjusted_predictions)
 
     # Retrend the true last k points
     last_value_for_true_points = initialization_data_retrended[-1]
     true_last_k_points_retrended = np.cumsum(true_last_k_points_unnorm) + last_value_for_true_points
-    # print("True Last K Points (after retrending):", true_last_k_points_retrended)
 
     # Calculate SMAPE
     smape_loss = SMAPELoss()
@@ -180,11 +175,11 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     return adjusted_predictions, true_last_k_points_retrended, smape.item(), initialization_data_retrended
 
 
-def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adjusted_predictions, series):
+def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adjusted_predictions, series, smape):
     plt.figure(figsize=(10, 5))
 
     # Plot entire test data without the last 18 points
-    plt.plot(np.arange(len(init_data_retrended)), init_data_retrended, color="black", label="Initialization Data")
+    plt.plot(np.arange(len(init_data_retrended)), init_data_retrended, color="black", label="Original Test Data")
 
     # Plot the true last 18 points
     time_index_true = np.arange(len(init_data_retrended), len(init_data_retrended) + len(true_last_k_points_unnorm))
@@ -195,7 +190,7 @@ def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adju
 
     plt.xlabel("Time Index")
     plt.ylabel("Value")
-    plt.title("True Values and k-Step Predictions")
+    plt.title(f"True Values and k-Step Predictions for {series}, with SMAPE: {smape:.2f}%")
     plt.legend()
     plt.grid(True)
     plt.savefig(f"plots/predictions/k_step_predictions_{series}.png")
@@ -218,7 +213,7 @@ if __name__ == "__main__":
             train_val_data, test_data, device, train_model
         )
 
-        k = 18  # standard choice in the MP3 competition
+        k = 18  # standard choice in the competition
         # Get all unique series
         print(test_data)
         all_series = test_data["Series"].unique() # type: ignore
@@ -237,7 +232,7 @@ if __name__ == "__main__":
                     test_data_filtered["Value"], k, predictor # type: ignore
                 )
             )
-            plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions, series=series)
+            plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions, series=series, smape=smape)
 
             # Append the SMAPE value to the list
             all_smape.append(smape)
@@ -245,5 +240,3 @@ if __name__ == "__main__":
         # Calculate the average SMAPE
         average_smape = sum(all_smape) / len(all_smape)
         print("Avg SMAPE:", average_smape)
-
-        # plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions)
