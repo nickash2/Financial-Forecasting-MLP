@@ -42,12 +42,12 @@ optuna-dashboard sqlite:///data/tuning.db
 - [x] Plot training losses, optimization history etc.
 
 ## Predicting
-- [ ] Predict and compare accuracy with the test set using sMAPe
-- [ ] Retrend the data for visual inspection and plotting on a chosen timeseries
+- [x] Predict and calculate average accuracy with the test set using sMAPe => 25% (not bad!)
+- [x] Retrend the data for visual inspection and plotting on a chosen timeseries
 
 
 ## Report Checklist
-- [ ] Read provided reports to create a structure of our report
+- [x] Read provided reports to create a structure of our report
 - [ ] Divide sections per teammate
 - [ ] Do a cross-check on the report
 
