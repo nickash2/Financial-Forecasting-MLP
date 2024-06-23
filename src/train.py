@@ -155,14 +155,14 @@ def objective(trial, dataset, device, n_splits=5, early_stopping_patience=10):
     val_losses = []
 
     # Define hyperparameters using trial.suggest_*
-    learning_rate = trial.suggest_float("lr", 1e-3, 1e-1, log=True)
+    learning_rate = trial.suggest_float("lr", 1e-6, 1e-1, log=True)
     hidden_size = trial.suggest_categorical("hidden_size", [2**i for i in range(4, 7)])
     lambda_reg = trial.suggest_float(
-        "lambda_reg", 1e-4, 1e-2, log=True
+        "lambda_reg", 1e-5, 1e-2, log=True
     )  # Increased upper limit
     hidden_layers = trial.suggest_int("hidden_layers", 1, 5)
     num_epochs = trial.suggest_int("num_epochs", 20, 40, step=5)
-    window_size = trial.suggest_int("window_size", 2, 5)
+    window_size = trial.suggest_int("window_size", 2, 8)
     dataset.window_size = window_size
 
     for fold, (train_indices, val_indices) in enumerate(blocked_split.split(dataset)):
