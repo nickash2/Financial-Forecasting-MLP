@@ -50,7 +50,7 @@ def create_study_and_pruner():
         min_resource=1, max_resource="auto", reduction_factor=3
     )
     study = optuna.create_study(
-        study_name="MLP-Tuning-17-06",
+        study_name="MLP-Tuning-23-06",
         direction="minimize",
         pruner=pruner,
         storage="sqlite:///data/tuning.db",
@@ -59,7 +59,7 @@ def create_study_and_pruner():
     return study
 
 
-def tuning_mode_operation(dataset, study, device, n_trials=200):
+def tuning_mode_operation(dataset, study, device, n_trials=400):
     study.optimize(
         lambda trial: objective(trial, dataset, device),
         n_trials=n_trials,
@@ -201,8 +201,8 @@ if __name__ == "__main__":
     print("Device:", device)
 
     train_val_data, test_data, test_data_raw = load_and_preprocess_data()
-    tuning_mode = False  # runs the tuning mode with the optuna study
-    train_model = False  # trains the final model with hyperparams
+    tuning_mode = True  # runs the tuning mode with the optuna study
+    train_model = True  # trains the final model with hyperparams
 
     if tuning_mode:
         study = run_tuning_mode(train_val_data, device)
