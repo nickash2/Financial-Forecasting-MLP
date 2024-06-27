@@ -4,6 +4,7 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import pickle
 
+
 def plot_preprocessed(df_detrended, name, train=False):
     if train:
         plt.figure(figsize=(10, 6))
@@ -42,6 +43,7 @@ def plot_preprocessed(df_detrended, name, train=False):
 
         plt.savefig(f"plots/preprocessed_series_{name}.png")
 
+
 def preprocess(dataset, test=False):
     df_long = pd.melt(
         dataset,
@@ -62,7 +64,7 @@ def preprocess(dataset, test=False):
 
         # Perform differencing
         differenced_data = data.diff().dropna()
-        
+
         # Store the last value of the original data before differencing
         last_value = data.iloc[-1]
 
@@ -71,7 +73,7 @@ def preprocess(dataset, test=False):
 
         # Fit scaler and transform the data
         scaler = MinMaxScaler(feature_range=(-1, 1))
-        combined_values = combined_data["Value"].values.reshape(-1, 1) # type: ignore
+        combined_values = combined_data["Value"].values.reshape(-1, 1)  # type: ignore
         combined_data["Value"] = scaler.fit_transform(combined_values)
 
         # Save the fitted scaler and the last value
@@ -116,7 +118,7 @@ def preprocess(dataset, test=False):
             )
             combined_data = pd.concat([combined_data, df_filtered])
         # Reset the index of the combined_data DataFrame
-        combined_data.reset_index(drop=True, inplace=True)  
-        plot_preprocessed(combined_data, "test",train=False)
+        combined_data.reset_index(drop=True, inplace=True)
+        plot_preprocessed(combined_data, "test", train=False)
 
     return combined_data
