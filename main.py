@@ -133,7 +133,7 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     initialization_data = test_data.dropna().values[:-k]
     true_last_k_points = test_data.dropna().values[-k:]
 
-    initial_window = initialization_data[-predictor.model.input_size:]
+    initial_window = initialization_data[-predictor.model.input_size :]
 
     predictions = []
     for _ in range(k):
@@ -146,12 +146,12 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
     scaler = pickle.load(open("data/train_scaler.pkl", "rb"))
     last_value = pickle.load(open("data/last_value.pkl", "rb"))
 
-
     # Undo normalization
-    initialization_data_unnorm = predictor.undo_normalization(initialization_data, scaler)
+    initialization_data_unnorm = predictor.undo_normalization(
+        initialization_data, scaler
+    )
     predictions_unnorm = predictor.undo_normalization(predictions, scaler)
     true_last_k_points_unnorm = predictor.undo_normalization(true_last_k_points, scaler)
-
 
     # Retrend the initialization data
     initialization_data_retrended = np.cumsum(initialization_data_unnorm) + last_value
@@ -164,7 +164,9 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
 
     # Retrend the true last k points
     last_value_for_true_points = initialization_data_retrended[-1]
-    true_last_k_points_retrended = np.cumsum(true_last_k_points_unnorm) + last_value_for_true_points
+    true_last_k_points_retrended = (
+        np.cumsum(true_last_k_points_unnorm) + last_value_for_true_points
+    )
 
     # Calculate SMAPE
     smape_loss = SMAPELoss()
@@ -172,25 +174,52 @@ def k_step_prediction_and_evaluate(test_data, k, predictor):
 
     print(f"SMAPE for k-step prediction: {smape.item()}%")
 
-    return adjusted_predictions, true_last_k_points_retrended, smape.item(), initialization_data_retrended
+    return (
+        adjusted_predictions,
+        true_last_k_points_retrended,
+        smape.item(),
+        initialization_data_retrended,
+    )
 
 
-def plot_k_step_predictions(init_data_retrended, true_last_k_points_unnorm, adjusted_predictions, series, smape):
+def plot_k_step_predictions(
+    init_data_retrended, true_last_k_points_unnorm, adjusted_predictions, series, smape
+):
     plt.figure(figsize=(10, 5))
 
     # Plot entire test data without the last 18 points
-    plt.plot(np.arange(len(init_data_retrended)), init_data_retrended, color="black", label="Original Test Data")
+    plt.plot(
+        np.arange(len(init_data_retrended)),
+        init_data_retrended,
+        color="black",
+        label="Original Test Data",
+    )
 
     # Plot the true last 18 points
-    time_index_true = np.arange(len(init_data_retrended), len(init_data_retrended) + len(true_last_k_points_unnorm))
-    plt.plot(time_index_true, true_last_k_points_unnorm, color="blue", label="True Values")
+    time_index_true = np.arange(
+        len(init_data_retrended),
+        len(init_data_retrended) + len(true_last_k_points_unnorm),
+    )
+    plt.plot(
+        time_index_true, true_last_k_points_unnorm, color="blue", label="True Values"
+    )
 
-    time_index_pred = np.arange(len(init_data_retrended), len(init_data_retrended) + len(adjusted_predictions))
-    plt.plot(time_index_pred, adjusted_predictions, color="orange", label="Prediction", linestyle="--")
+    time_index_pred = np.arange(
+        len(init_data_retrended), len(init_data_retrended) + len(adjusted_predictions)
+    )
+    plt.plot(
+        time_index_pred,
+        adjusted_predictions,
+        color="orange",
+        label="Prediction",
+        linestyle="--",
+    )
 
     plt.xlabel("Time Index")
     plt.ylabel("Value")
-    plt.title(f"True Values and k-Step Predictions for {series}, with SMAPE: {smape:.2f}%")
+    plt.title(
+        f"True Values and k-Step Predictions for {series}, with SMAPE: {smape:.2f}%"
+    )
     plt.legend()
     plt.grid(True)
     plt.savefig(f"plots/predictions/k_step_predictions_{series}.png")
@@ -208,7 +237,7 @@ if __name__ == "__main__":
         study = run_tuning_mode(train_val_data, device)
         plot_best_study(study)
     else:
-        
+
         best_params, predictor = run_non_tuning_mode(
             train_val_data, test_data, device, train_model
         )
@@ -216,7 +245,7 @@ if __name__ == "__main__":
         k = 18  # standard choice in the competition
         # Get all unique series
         print(test_data)
-        all_series = test_data["Series"].unique() # type: ignore
+        all_series = test_data["Series"].unique()  # type: ignore
 
         # Initialize a list to store all SMAPE values
         all_smape = []
@@ -227,12 +256,21 @@ if __name__ == "__main__":
             test_data_filtered = test_data[test_data["Series"] == series]
 
             # Run the k_step_prediction_and_evaluate function
-            adjusted_predictions, true_last_k_points, smape, initialization_data = (
-                k_step_prediction_and_evaluate(
-                    test_data_filtered["Value"], k, predictor # type: ignore
-                )
+            (
+                adjusted_predictions,
+                true_last_k_points,
+                smape,
+                initialization_data,
+            ) = k_step_prediction_and_evaluate(
+                test_data_filtered["Value"], k, predictor  # type: ignore
             )
-            plot_k_step_predictions(initialization_data, true_last_k_points, adjusted_predictions, series=series, smape=smape)
+            plot_k_step_predictions(
+                initialization_data,
+                true_last_k_points,
+                adjusted_predictions,
+                series=series,
+                smape=smape,
+            )
 
             # Append the SMAPE value to the list
             all_smape.append(smape)

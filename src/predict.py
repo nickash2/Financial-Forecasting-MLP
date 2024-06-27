@@ -40,7 +40,3 @@ class Predictor:
             inversed_data = inversed_data.flatten()
 
         return inversed_data
-
-
-
-
