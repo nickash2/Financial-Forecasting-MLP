@@ -48,8 +48,8 @@ optuna-dashboard sqlite:///data/tuning.db
 
 ## Report Checklist
 - [x] Read provided reports to create a structure of our report
-- [ ] Divide sections per teammate
-- [ ] Do a cross-check on the report
+- [x] Divide sections per teammate
+- [x] Do a cross-check on the report
 
 
 
