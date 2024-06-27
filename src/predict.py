@@ -1,10 +1,5 @@
 # Description: This file contains the code to make predictions using the trained model.
 import torch
-from .mlp import SMAPELoss, MLP
-import numpy as np
-from sklearn.linear_model import LinearRegression
-import pickle
-import pandas as pd
 
 
 class Predictor:
@@ -18,19 +13,6 @@ class Predictor:
 
         # Set model to evaluation mode
         self.model.eval()
-
-    @staticmethod
-    def accuracy(true_data, predictions):
-        numerator = np.abs(true_data - predictions)
-        denominator = (np.abs(true_data) + np.abs(predictions)) / 2
-        return np.mean(numerator / denominator) * 100
-
-    def predict(self, data):
-        # make predictions
-        self.model.eval()
-        with torch.no_grad():
-            predictions = self.model(data)
-        return predictions
 
     def predict_next(self, last_window):
         self.model.eval()
@@ -59,13 +41,6 @@ class Predictor:
 
         return inversed_data
 
-    def retrend_data(self, differenced_data, last_value):
-        retrended_data = np.empty_like(differenced_data)
-        retrended_data[0] = last_value + differenced_data[0]
-        
-        for i in range(1, len(differenced_data)):
-            retrended_data[i] = retrended_data[i - 1] + differenced_data[i]
-        
-        return retrended_data
+
 
 
